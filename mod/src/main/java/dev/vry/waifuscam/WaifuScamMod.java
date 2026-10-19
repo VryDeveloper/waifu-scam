@@ -1,5 +1,6 @@
 package dev.vry.waifuscam;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.vry.waifuscam.bot.CompanionManager;
 import dev.vry.waifuscam.bot.CompanionPlayer;
@@ -16,6 +17,7 @@ import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,7 @@ import java.util.function.LongConsumer;
  * Fase 0: liga na Mente (hello → welcome) e mede o ping.
  * Fase 1: coloca a personagem no mundo ao abrir a LAN, repassa o chat e o estado
  * dela para a Mente e fala no chat quando a Mente manda.
+ * Fase 2: o estado também leva quem está online, o horário e o clima.
  */
 public final class WaifuScamMod implements ModInitializer {
 	public static final String MOD_ID = "waifuscam";
@@ -163,6 +166,17 @@ public final class WaifuScamMod implements ModInitializer {
 		CompanionPlayer p = companions.player();
 		JsonObject s = new JsonObject();
 		s.addProperty("online", p != null);
+
+		// Contexto do mundo, para a conversa (fase 2)
+		JsonArray players = new JsonArray();
+		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			players.add(player.getGameProfile().name());
+		}
+		s.add("players", players);
+		ServerLevel overworld = server.overworld();
+		s.addProperty("time_of_day", overworld.getOverworldClockTime() % 24000L);
+		s.addProperty("weather", overworld.isThundering() ? "thunder" : overworld.isRaining() ? "rain" : "clear");
+
 		if (p != null) {
 			s.addProperty("alive", !p.isDeadOrDying());
 			s.addProperty("health", p.getHealth());

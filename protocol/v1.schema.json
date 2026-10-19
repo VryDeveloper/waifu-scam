@@ -254,6 +254,26 @@
           "examples": [
             "minecraft:overworld"
           ]
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Players online, incluindo a personagem."
+        },
+        "time_of_day": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23999,
+          "description": "Hora do jogo em ticks (0 = amanhecer, 6000 = meio-dia, 13000 = noite)."
+        },
+        "weather": {
+          "enum": [
+            "clear",
+            "rain",
+            "thunder"
+          ]
         }
       },
       "required": [

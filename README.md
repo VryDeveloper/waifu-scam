@@ -10,7 +10,7 @@
 
 Ela joga como uma player de verdade: tem vida e fome, vontades próprias, conversa pelo chat com a personalidade que você escrever e decide se aceita, adia ou recusa os seus pedidos. A IA roda em planos gratuitos (Groq, Gemini, OpenRouter) ou localmente com Ollama.
 
-> **Status: fase 1 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, e fala no chat (por enquanto só em eco, sem IA — isso é a fase 2). Veja o [roadmap](#roadmap).
+> **Status: fase 2 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, e conversa no chat com a personalidade dela usando IA gratuita. Ela ainda não anda nem mexe no mundo — isso começa na fase 3. Veja o [roadmap](#roadmap).
 
 ## Como funciona
 
@@ -59,6 +59,16 @@ python -m waifuscam_mind
 
 Deve aparecer: `Mente ouvindo em ws://127.0.0.1:8765 com a personagem Lumi`.
 
+**Para ela conversar com IA**, copie `.env.example` para `.env` na raiz do repositório e preencha pelo menos uma chave grátis:
+
+| Provedor | Onde pegar a chave |
+|---|---|
+| Groq (recomendado) | [console.groq.com/keys](https://console.groq.com/keys) |
+| Google Gemini | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| OpenRouter | [openrouter.ai/keys](https://openrouter.ai/keys) |
+
+Com mais de uma chave, se um provedor bater o limite grátis o próximo assume. Sem nenhuma, ela só responde em eco. Também dá para usar um modelo local com Ollama (veja `.env.example`).
+
 Para testar sem o jogo, abra outro terminal (com o venv ativo) e rode o corpo simulado. Com `--chat` ela "entra" num mundo de mentira e você conversa pelo terminal:
 
 ```bash
@@ -83,7 +93,7 @@ cd mod
 ./gradlew build
 ```
 
-Copie `mod/build/libs/waifuscam-0.2.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
+Copie `mod/build/libs/waifuscam-0.3.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
 
 | Campo | Padrão | O que faz |
 |---|---|---|
@@ -100,7 +110,9 @@ Copie `mod/build/libs/waifuscam-0.2.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu spawn` | Chama a personagem para perto de você |
 | `/waifu despawn` | Tira ela do mundo (o inventário fica salvo) |
 
-Ela é um player de verdade: aparece no Tab, sente fome, pode morrer (solta os itens e renasce sozinha) e pode ser expulsa com `/kick`. No chat, fale o nome dela que ela responde em eco.
+Ela é um player de verdade: aparece no Tab, sente fome, pode morrer (solta os itens e renasce sozinha) e pode ser expulsa com `/kick`. No chat, ela responde quando você fala o nome dela, quando só tem você online com ela, ou quando você continua uma conversa que ela acabou de responder. Ela também cumprimenta ao entrar e comenta quando morre.
+
+Para não estourar a cota grátis, existe um limite diário de chamadas (`[llm] daily_limit` no `character.toml`, padrão 800). Quando acaba, ela avisa no chat e volta a falar no dia seguinte.
 
 ## Crie a sua personagem
 
@@ -141,7 +153,8 @@ waifu-scam/
 │   │   ├── protocol.py         # modelos Pydantic do protocolo
 │   │   ├── character.py        # carrega o pacote de personagem
 │   │   ├── skins.py            # skin por conta (Mojang) ou PNG (MineSkin), com cache
-│   │   ├── brain/              # o que ela faz com os eventos (fase 1: eco)
+│   │   ├── brain/              # o que ela faz com os eventos (eco ou conversa com IA)
+│   │   ├── llm/                # provedores gratuitos com fallback e orçamento diário
 │   │   └── sim/body.py         # corpo simulado para testes
 │   └── tests/
 ├── characters/     # personagens (private/ fica fora do Git)
@@ -154,8 +167,8 @@ waifu-scam/
 | Fase | Entrega | Pronto quando |
 |---|---|---|
 | 0 · Fundação ✅ | Ambiente Fabric 26.3, esqueleto da Mente, WebSocket | O mod carrega e a Mente responde ao ping |
-| **1 · O corpo existe** 🧪 | Fake player entra ao abrir a LAN, skin, eco de chat | Ela aparece no Tab, sente fome e morre de verdade |
-| 2 · Conversa | Chat com a persona, fallback de provedores, orçamento | Você conversa com ela pelo chat |
+| 1 · O corpo existe ✅ | Fake player entra ao abrir a LAN, skin, eco de chat | Ela aparece no Tab, sente fome e morre de verdade |
+| **2 · Conversa** 🧪 | Chat com a persona, fallback de provedores, orçamento | Você conversa com ela pelo chat |
 | 3 · Movimento | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
 | 4 · Mãos | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
 | 5 · Vontade própria | Necessidades, decisão por tool calling, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |

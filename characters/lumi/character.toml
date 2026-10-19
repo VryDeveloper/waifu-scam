@@ -35,6 +35,8 @@ commands = true
 permission_level = 2
 
 [llm]
+# Ordem de tentativa; provedores sem chave no .env são pulados.
 provider_order = ["groq", "gemini", "openrouter"]
-chat_model = ""           # vazio = padrão do provedor
-plan_model = ""
+chat_model = ""           # vazio = padrão de cada provedor (ou <PROVEDOR>_MODEL no .env)
+temperature = 0.9         # 0.5 = mais contida, 1.0 = mais solta
+daily_limit = 800         # máximo de chamadas de IA por dia (o plano grátis do Groq dá ~1.000)

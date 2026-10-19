@@ -37,6 +37,10 @@ Mensagem inválida → a Mente responde `{"type":"error","message":"..."}` e man
 | `event` `chat` | Corpo → Mente | Chat de players: `from`, `text` |
 | `chat.say` | Mente → Corpo | Ela fala no chat |
 
+## Fase 2
+
+`state` ganha `players` (quem está online), `time_of_day` (0 a 23999 ticks) e `weather` (`clear`, `rain`, `thunder`), usados pela Mente para dar contexto à conversa.
+
 ## Próximas fases
 
 `skill.start` / `skill.progress` / `skill.done` / `skill.failed` / `skill.cancel`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

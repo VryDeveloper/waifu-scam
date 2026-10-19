@@ -7,6 +7,7 @@ Brain (pasta brain/), que pode ser trocado sem mexer aqui.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -38,6 +39,7 @@ class Session:
     ready: bool = False  # true depois do welcome
     state: p.State | None = None
     events: list[p.Event] = field(default_factory=list)
+    tasks: set[asyncio.Task] = field(default_factory=set)
 
     @property
     def character(self) -> Character:
@@ -51,6 +53,29 @@ class Session:
     async def say(self, text: str) -> None:
         log.info("%s diz: %s", self.character.name, text)
         await self.send(p.ChatSay(text=text))
+
+    def run_in_background(self, coro) -> None:
+        """Roda sem travar a leitura de mensagens (a IA leva segundos para responder)."""
+        task = asyncio.create_task(coro)
+        self.tasks.add(task)
+        task.add_done_callback(self._task_done)
+
+    def _task_done(self, task: asyncio.Task) -> None:
+        self.tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            log.error("Erro no cérebro", exc_info=task.exception())
+
+
+@dataclass(frozen=True)
+class EventMouth:
+    """A boca que o cérebro recebe: fala pela sessão, mas vê o estado do momento
+    em que o evento chegou. Assim uma fala antiga não é julgada com o estado de agora."""
+
+    session: Session
+    state: p.State | None
+
+    async def say(self, text: str) -> None:
+        await self.session.say(text)
 
 
 class MindServer:
@@ -132,6 +157,8 @@ class MindServer:
         except ConnectionClosed:
             pass
         finally:
+            for task in list(session.tasks):
+                task.cancel()
             self.sessions.discard(session)
             log.info("Corpo desconectado (%s)", session.body or "?")
 
@@ -179,4 +206,5 @@ async def on_event(session: Session, msg: p.Envelope) -> None:
     session.events.append(msg)
     del session.events[:-MAX_EVENTS_KEPT]
     log.info("Evento: %s", msg.model_dump(exclude={"v", "type", "bot"}))
-    await session.server.brain.on_event(session, msg)
+    mouth = EventMouth(session, session.state)
+    session.run_in_background(session.server.brain.on_event(mouth, msg))
