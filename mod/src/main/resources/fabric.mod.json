@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "waifuscam",
+	"version": "${version}",
+	"name": "Waifu Scam",
+	"description": "Uma player de IA com personalidade de VTuber que entra no seu mundo quando você abre a LAN.",
+	"authors": ["VryDeveloper"],
+	"contact": {
+		"sources": "https://github.com/VryDeveloper/waifu-scam"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["dev.vry.waifuscam.WaifuScamMod"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

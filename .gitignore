@@ -1,0 +1,36 @@
+# Segredos
+.env
+*.env
+!.env.example
+
+# Coisas pessoais: personagens privadas e skins
+characters/private/*
+!characters/private/README.md
+skins/*
+!skins/README.md
+characters/**/skin.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+mind/data/
+
+# Gradle / Fabric
+mod/.gradle/
+mod/build/
+mod/run/
+mod/out/
+mod/bin/
+
+# IDEs e sistema
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+hs_err_*.log

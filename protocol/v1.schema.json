@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/VryDeveloper/waifu-scam/protocol/v1.schema.json",
+  "title": "Waifu Scam — protocolo Corpo ↔ Mente v1",
+  "description": "Mensagens trocadas por WebSocket (texto JSON). Campos desconhecidos devem ser ignorados por quem recebe.",
+  "type": "object",
+  "required": ["v", "type"],
+  "properties": {
+    "v": { "const": 1 },
+    "bot": { "type": ["string", "null"], "description": "Id da personagem. null antes do welcome." },
+    "type": { "type": "string" }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/hello" },
+    { "$ref": "#/$defs/welcome" },
+    { "$ref": "#/$defs/ping" },
+    { "$ref": "#/$defs/pong" },
+    { "$ref": "#/$defs/event" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "hello": {
+      "description": "Corpo → Mente, primeira mensagem ao conectar.",
+      "properties": {
+        "type": { "const": "hello" },
+        "protocol": { "const": 1 },
+        "body": { "type": "string", "examples": ["fabric", "sim"] },
+        "body_version": { "type": "string" },
+        "minecraft": { "type": ["string", "null"], "examples": ["26.3"] }
+      },
+      "required": ["type", "protocol", "body", "body_version"]
+    },
+    "welcome": {
+      "description": "Mente → Corpo, resposta ao hello. Define o id (bot) usado daqui em diante.",
+      "properties": {
+        "type": { "const": "welcome" },
+        "bot": { "type": "string" },
+        "character": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "language": { "type": "string" }
+          },
+          "required": ["id", "name", "language"]
+        }
+      },
+      "required": ["type", "bot", "character"]
+    },
+    "ping": {
+      "description": "Qualquer lado. Quem recebe responde pong com o mesmo id.",
+      "properties": {
+        "type": { "const": "ping" },
+        "id": { "type": "string" },
+        "t": { "type": "integer", "description": "Hora do envio em ms (epoch), opcional." }
+      },
+      "required": ["type", "id"]
+    },
+    "pong": {
+      "properties": { "type": { "const": "pong" }, "id": { "type": "string" } },
+      "required": ["type", "id"]
+    },
+    "event": {
+      "description": "Corpo → Mente. Algo aconteceu no jogo. Campos extras dependem do evento.",
+      "properties": {
+        "type": { "const": "event" },
+        "event": { "type": "string", "examples": ["chat", "damaged", "died", "nightfall"] }
+      },
+      "required": ["type", "event"]
+    },
+    "error": {
+      "description": "Qualquer lado. A mensagem anterior foi recusada.",
+      "properties": { "type": { "const": "error" }, "message": { "type": "string" } },
+      "required": ["type", "message"]
+    }
+  }
+}

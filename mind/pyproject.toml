@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "waifuscam-mind"
+version = "0.1.0"
+description = "A Mente do Waifu Scam: personalidade, necessidades e decisões da player de IA."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [{ name = "VryDeveloper" }]
+dependencies = [
+    "websockets>=14,<18",
+    "pydantic>=2.7,<3",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6"]
+
+[project.scripts]
+waifuscam-mind = "waifuscam_mind.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["waifuscam_mind*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
