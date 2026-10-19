@@ -16,12 +16,16 @@ import java.util.function.BiConsumer;
  * cria um ServerPlayer novo.
  */
 public final class CompanionManager {
+	/** Ticks entre morrer e apertar "Respawn" (2 s). */
+	private static final int RESPAWN_DELAY_TICKS = 40;
+
 	private final MinecraftServer server;
 	private final BiConsumer<String, String> events; // (evento, detalhe) → Mente
 
 	private String username;
 	private SkinData skin;
 	private UUID uuid;
+	private int deadTicks;
 
 	public CompanionManager(MinecraftServer server, BiConsumer<String, String> events) {
 		this.server = server;
@@ -98,6 +102,23 @@ public final class CompanionManager {
 		player.connection.disconnect(Component.literal(reason));
 		events.accept("despawned", reason);
 		return true;
+	}
+
+	/**
+	 * Chamado no fim de cada tick do servidor. O corpo de um player morto sai do
+	 * mundo depois da animação de morte e para de receber tick(), mas continua na
+	 * lista de players até o respawn. Por isso a contagem fica aqui, e não nele.
+	 */
+	public void tick() {
+		CompanionPlayer player = player();
+		if (player == null || !player.isDeadOrDying()) {
+			deadTicks = 0;
+			return;
+		}
+		if (++deadTicks >= RESPAWN_DELAY_TICKS) {
+			deadTicks = 0;
+			player.pressRespawn();
+		}
 	}
 
 	public void onDied(CompanionPlayer player, String deathMessage) {

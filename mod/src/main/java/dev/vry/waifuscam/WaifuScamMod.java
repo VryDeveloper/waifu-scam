@@ -104,6 +104,7 @@ public final class WaifuScamMod implements ModInitializer {
 		if (companions == null) {
 			return;
 		}
+		companions.tick();
 		int tick = server.getTickCount();
 		if (tick % 20 == 0) {
 			maybeAutoJoin();

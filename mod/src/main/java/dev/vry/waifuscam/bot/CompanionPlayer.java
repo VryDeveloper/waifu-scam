@@ -33,16 +33,12 @@ import java.util.UUID;
  *
  * Por ser um player, ela tem vida, fome, inventário, dano, morte e aparece no Tab
  * sem nenhum código extra. Diferente do fake player do Carpet, ela não some ao
- * morrer: espera um pouco e faz respawn como um player faria.
+ * morrer: o CompanionManager espera um pouco e aperta "Respawn" por ela.
  *
  * Partes adaptadas do EntityPlayerMPFake do Carpet (MIT, gnembon).
  */
 public class CompanionPlayer extends ServerPlayer {
-	/** Ticks entre morrer e apertar "Respawn" (2 s). */
-	private static final int RESPAWN_DELAY_TICKS = 40;
-
 	public Runnable fixStartingPosition = () -> {};
-	private int deadTicks;
 
 	private CompanionPlayer(MinecraftServer server, ServerLevel level, GameProfile profile, ClientInformation info) {
 		super(server, level, profile, info);
@@ -109,16 +105,11 @@ public class CompanionPlayer extends ServerPlayer {
 		}
 		super.tick();
 		doTick();
+	}
 
-		if (isDeadOrDying()) {
-			if (++deadTicks == RESPAWN_DELAY_TICKS) {
-				// Mesmo caminho do botão "Respawn" de um cliente; roda entre ticks.
-				server.execute(() -> connection.handleClientCommand(
-						new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.PERFORM_RESPAWN)));
-			}
-		} else {
-			deadTicks = 0;
-		}
+	/** Aperta o botão "Respawn", pelo mesmo caminho que um cliente de verdade usaria. */
+	public void pressRespawn() {
+		connection.handleClientCommand(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.PERFORM_RESPAWN));
 	}
 
 	@Override
