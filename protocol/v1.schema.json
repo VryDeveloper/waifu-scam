@@ -4,74 +4,277 @@
   "title": "Waifu Scam — protocolo Corpo ↔ Mente v1",
   "description": "Mensagens trocadas por WebSocket (texto JSON). Campos desconhecidos devem ser ignorados por quem recebe.",
   "type": "object",
-  "required": ["v", "type"],
+  "required": [
+    "v",
+    "type"
+  ],
   "properties": {
-    "v": { "const": 1 },
-    "bot": { "type": ["string", "null"], "description": "Id da personagem. null antes do welcome." },
-    "type": { "type": "string" }
+    "v": {
+      "const": 1
+    },
+    "bot": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Id da personagem. null antes do welcome."
+    },
+    "type": {
+      "type": "string"
+    }
   },
   "oneOf": [
-    { "$ref": "#/$defs/hello" },
-    { "$ref": "#/$defs/welcome" },
-    { "$ref": "#/$defs/ping" },
-    { "$ref": "#/$defs/pong" },
-    { "$ref": "#/$defs/event" },
-    { "$ref": "#/$defs/error" }
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/welcome"
+    },
+    {
+      "$ref": "#/$defs/ping"
+    },
+    {
+      "$ref": "#/$defs/pong"
+    },
+    {
+      "$ref": "#/$defs/event"
+    },
+    {
+      "$ref": "#/$defs/error"
+    },
+    {
+      "$ref": "#/$defs/state"
+    },
+    {
+      "$ref": "#/$defs/chat.say"
+    }
   ],
   "$defs": {
     "hello": {
       "description": "Corpo → Mente, primeira mensagem ao conectar.",
       "properties": {
-        "type": { "const": "hello" },
-        "protocol": { "const": 1 },
-        "body": { "type": "string", "examples": ["fabric", "sim"] },
-        "body_version": { "type": "string" },
-        "minecraft": { "type": ["string", "null"], "examples": ["26.3"] }
+        "type": {
+          "const": "hello"
+        },
+        "protocol": {
+          "const": 1
+        },
+        "body": {
+          "type": "string",
+          "examples": [
+            "fabric",
+            "sim"
+          ]
+        },
+        "body_version": {
+          "type": "string"
+        },
+        "minecraft": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "examples": [
+            "26.3"
+          ]
+        }
       },
-      "required": ["type", "protocol", "body", "body_version"]
+      "required": [
+        "type",
+        "protocol",
+        "body",
+        "body_version"
+      ]
     },
     "welcome": {
       "description": "Mente → Corpo, resposta ao hello. Define o id (bot) usado daqui em diante.",
       "properties": {
-        "type": { "const": "welcome" },
-        "bot": { "type": "string" },
+        "type": {
+          "const": "welcome"
+        },
+        "bot": {
+          "type": "string"
+        },
         "character": {
           "type": "object",
           "properties": {
-            "id": { "type": "string" },
-            "name": { "type": "string" },
-            "language": { "type": "string" }
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "language": {
+              "type": "string"
+            }
           },
-          "required": ["id", "name", "language"]
+          "required": [
+            "id",
+            "name",
+            "language"
+          ]
+        },
+        "username": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_]{3,16}$",
+          "description": "Nome de player no Minecraft."
+        },
+        "skin": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Textura assinada pela Mojang (propriedade 'textures' do GameProfile). null = skin padrão.",
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "signature": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value",
+            "signature"
+          ]
         }
       },
-      "required": ["type", "bot", "character"]
+      "required": [
+        "type",
+        "bot",
+        "character",
+        "username"
+      ]
     },
     "ping": {
       "description": "Qualquer lado. Quem recebe responde pong com o mesmo id.",
       "properties": {
-        "type": { "const": "ping" },
-        "id": { "type": "string" },
-        "t": { "type": "integer", "description": "Hora do envio em ms (epoch), opcional." }
+        "type": {
+          "const": "ping"
+        },
+        "id": {
+          "type": "string"
+        },
+        "t": {
+          "type": "integer",
+          "description": "Hora do envio em ms (epoch), opcional."
+        }
       },
-      "required": ["type", "id"]
+      "required": [
+        "type",
+        "id"
+      ]
     },
     "pong": {
-      "properties": { "type": { "const": "pong" }, "id": { "type": "string" } },
-      "required": ["type", "id"]
+      "properties": {
+        "type": {
+          "const": "pong"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ]
     },
     "event": {
-      "description": "Corpo → Mente. Algo aconteceu no jogo. Campos extras dependem do evento.",
+      "description": "Corpo → Mente. Algo aconteceu no jogo. chat traz 'from' e 'text'; died e despawned trazem 'message'.",
       "properties": {
-        "type": { "const": "event" },
-        "event": { "type": "string", "examples": ["chat", "damaged", "died", "nightfall"] }
+        "type": {
+          "const": "event"
+        },
+        "event": {
+          "type": "string",
+          "examples": [
+            "chat",
+            "spawned",
+            "despawned",
+            "died",
+            "respawned"
+          ]
+        }
       },
-      "required": ["type", "event"]
+      "required": [
+        "type",
+        "event"
+      ]
     },
     "error": {
       "description": "Qualquer lado. A mensagem anterior foi recusada.",
-      "properties": { "type": { "const": "error" }, "message": { "type": "string" } },
-      "required": ["type", "message"]
+      "properties": {
+        "type": {
+          "const": "error"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "message"
+      ]
+    },
+    "state": {
+      "description": "Corpo → Mente, a cada ~2 s. Snapshot da personagem.",
+      "properties": {
+        "type": {
+          "const": "state"
+        },
+        "online": {
+          "type": "boolean"
+        },
+        "alive": {
+          "type": "boolean"
+        },
+        "health": {
+          "type": "number"
+        },
+        "max_health": {
+          "type": "number"
+        },
+        "food": {
+          "type": "integer"
+        },
+        "saturation": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        },
+        "dimension": {
+          "type": "string",
+          "examples": [
+            "minecraft:overworld"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "online"
+      ]
+    },
+    "chat.say": {
+      "description": "Mente → Corpo. A personagem fala no chat do jogo.",
+      "properties": {
+        "type": {
+          "const": "chat.say"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ]
     }
   }
 }

@@ -5,10 +5,13 @@ name = "Lumi"
 language = "pt-BR"
 persona = "persona.md"
 
+[minecraft]
+username = "Lumi"         # nome de player no jogo: 3 a 16 letras, números ou _
+
 [skin]
-# Escolha uma das duas formas (fase 1):
-# username = "NomeDeUmaConta"   # copia a skin de uma conta do Minecraft
-# file = "skin.png"              # PNG próprio nesta pasta (assinado via MineSkin)
+# Escolha uma das duas formas (ou nenhuma, para a skin padrão):
+# username = "NomeDeUmaConta"   # copia a skin atual de uma conta do Minecraft
+# file = "skin.png"              # PNG 64x64 nesta pasta; precisa de MINESKIN_API_KEY no .env
 model = "slim"                   # "slim" (braços finos) ou "classic"
 
 [needs]
@@ -22,6 +25,7 @@ comfort = 1.3
 curiosity = 1.0
 
 [chat]
+greeting = "oi gente! cheguei"   # o que ela fala ao entrar no mundo
 proactive_interval = 60   # segundos mínimos entre falas espontâneas
 typing_speed = 12         # caracteres por segundo, para parecer que está digitando
 

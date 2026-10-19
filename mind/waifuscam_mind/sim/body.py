@@ -60,17 +60,49 @@ class SimulatedBody:
     async def chat(self, sender: str, text: str) -> None:
         await self.send(p.Event(bot=self.bot, event="chat", **{"from": sender, "text": text}))
 
+    async def event(self, name: str, **fields) -> None:
+        await self.send(p.Event(bot=self.bot, event=name, **fields))
+
+    async def state(self, online: bool = True, **fields) -> None:
+        await self.send(p.State(bot=self.bot, online=online, **fields))
+
+    async def spawn(self) -> None:
+        """Faz de conta que a personagem entrou no mundo, como o mod faria."""
+        await self.state(online=True, alive=True, health=20.0, max_health=20.0, food=20)
+        await self.event("spawned")
+
+    async def next_say(self, timeout: float = 5) -> str:
+        """Espera a próxima fala da personagem, ignorando outras mensagens."""
+        while True:
+            msg = await self.recv(timeout)
+            if isinstance(msg, p.ChatSay):
+                return msg.text
+
+
+async def _print_says(body: SimulatedBody, name: str) -> None:
+    while True:
+        try:
+            print(f"\n<{name}> {await body.next_say(timeout=3600)}\n> ", end="", flush=True)
+        except TimeoutError:
+            continue
+
 
 async def _run(url: str, chat: bool) -> None:
     async with SimulatedBody(url) as body:
         welcome = await body.handshake()
-        print(f"Conectado. Personagem: {welcome.character.name} ({welcome.character.language})")
+        skin = "personalizada" if welcome.skin else "padrão"
+        print(f"Conectado. Personagem: {welcome.character.name} (usuário {welcome.username}, skin {skin})")
         print(f"Ping: {await body.ping():.1f} ms")
         if chat:
-            print("Digite mensagens de chat (Ctrl+C para sair).")
-            while True:
-                text = await asyncio.to_thread(input, "> ")
-                await body.chat("Vry", text)
+            await body.spawn()
+            printer = asyncio.create_task(_print_says(body, welcome.username))
+            print("Ela entrou no mundo simulado. Digite mensagens de chat (Ctrl+C para sair).")
+            try:
+                while True:
+                    text = await asyncio.to_thread(input, "> ")
+                    await body.chat("Vry", text)
+            finally:
+                printer.cancel()
 
 
 def main() -> None:

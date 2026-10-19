@@ -1,8 +1,8 @@
 """Servidor WebSocket da Mente. Cada Corpo conectado vira uma Session.
 
 As mensagens são despachadas por tipo para handlers registrados com
-@MindServer.handles("tipo"). As próximas fases adicionam handlers novos
-(chat, eventos, habilidades) sem mexer no laço de conexão.
+@MindServer.handles("tipo"). O que a personagem faz com os eventos fica no
+Brain (pasta brain/), que pode ser trocado sem mexer aqui.
 """
 
 from __future__ import annotations
@@ -15,11 +15,15 @@ from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
 from . import protocol as p
+from .brain import Brain, EchoBrain
 from .character import Character
+from .skins import SkinResolver
 
 log = logging.getLogger(__name__)
 
 Handler = Callable[["Session", p.Envelope], Awaitable[None]]
+
+MAX_EVENTS_KEPT = 200
 
 
 @dataclass(eq=False)  # comparada por identidade, para caber num set
@@ -27,26 +31,44 @@ class Session:
     """Um Corpo conectado e a personagem que ele está controlando."""
 
     conn: ServerConnection
-    character: Character
+    server: MindServer
     body: str | None = None
     body_version: str | None = None
     minecraft: str | None = None
     ready: bool = False  # true depois do welcome
-    events: list[p.Envelope] = field(default_factory=list)
+    state: p.State | None = None
+    events: list[p.Event] = field(default_factory=list)
+
+    @property
+    def character(self) -> Character:
+        return self.server.character
 
     async def send(self, msg: p.Envelope) -> None:
         if msg.bot is None and self.ready:
             msg.bot = self.character.id
         await self.conn.send(p.dump(msg))
 
+    async def say(self, text: str) -> None:
+        log.info("%s diz: %s", self.character.name, text)
+        await self.send(p.ChatSay(text=text))
+
 
 class MindServer:
     _handlers: dict[str, Handler] = {}
 
-    def __init__(self, character: Character, host: str = "127.0.0.1", port: int = 8765):
+    def __init__(
+        self,
+        character: Character,
+        host: str = "127.0.0.1",
+        port: int = 8765,
+        skins: SkinResolver | None = None,
+        brain: Brain | None = None,
+    ):
         self.character = character
         self.host = host
         self.port = port
+        self.skins = skins
+        self.brain: Brain = brain or EchoBrain(character)
         self.sessions: set[Session] = set()
         self._server: Server | None = None
 
@@ -64,7 +86,13 @@ class MindServer:
         self._server = await serve(self._on_connection, self.host, self.port)
         # porta 0 = o sistema escolhe; útil em testes
         self.port = self._server.sockets[0].getsockname()[1] if self._server.sockets else self.port
-        log.info("Mente ouvindo em ws://%s:%s com a personagem %s", self.host, self.port, self.character.name)
+        log.info(
+            "Mente ouvindo em ws://%s:%s com a personagem %s (usuário %s)",
+            self.host,
+            self.port,
+            self.character.name,
+            self.character.username,
+        )
 
     async def stop(self) -> None:
         if self._server:
@@ -79,7 +107,7 @@ class MindServer:
     # ---- conexão -----------------------------------------------------------
 
     async def _on_connection(self, conn: ServerConnection) -> None:
-        session = Session(conn=conn, character=self.character)
+        session = Session(conn=conn, server=self)
         self.sessions.add(session)
         log.info("Corpo conectado de %s", conn.remote_address)
         try:
@@ -94,7 +122,13 @@ class MindServer:
                 if handler is None:
                     log.debug("Sem handler para %s", msg.type)
                     continue
-                await handler(session, msg)
+                try:
+                    await handler(session, msg)
+                except ConnectionClosed:
+                    raise
+                except Exception:
+                    # um bug num handler não pode derrubar a conexão com o jogo
+                    log.exception("Erro tratando %s", msg.type)
         except ConnectionClosed:
             pass
         finally:
@@ -102,7 +136,7 @@ class MindServer:
             log.info("Corpo desconectado (%s)", session.body or "?")
 
 
-# ---- handlers da fase 0 ----------------------------------------------------
+# ---- handlers --------------------------------------------------------------
 
 
 @MindServer.handles("hello")
@@ -114,8 +148,16 @@ async def on_hello(session: Session, msg: p.Envelope) -> None:
         return
     session.body, session.body_version, session.minecraft = msg.body, msg.body_version, msg.minecraft
     c = session.character
+    skin = await session.server.skins.resolve(c) if session.server.skins else None
     session.ready = True
-    await session.send(p.Welcome(bot=c.id, character=p.CharacterInfo(id=c.id, name=c.name, language=c.language)))
+    await session.send(
+        p.Welcome(
+            bot=c.id,
+            character=p.CharacterInfo(id=c.id, name=c.name, language=c.language),
+            username=c.username,
+            skin=p.SkinInfo(value=skin.value, signature=skin.signature) if skin else None,
+        )
+    )
     log.info("Aperto de mão ok: corpo %s %s, Minecraft %s", msg.body, msg.body_version, msg.minecraft)
 
 
@@ -125,8 +167,16 @@ async def on_ping(session: Session, msg: p.Envelope) -> None:
     await session.send(p.Pong(id=msg.id))
 
 
+@MindServer.handles("state")
+async def on_state(session: Session, msg: p.Envelope) -> None:
+    assert isinstance(msg, p.State)
+    session.state = msg
+
+
 @MindServer.handles("event")
 async def on_event(session: Session, msg: p.Envelope) -> None:
-    # Fase 0: só registra. A fase 2 liga isto ao agente de chat.
+    assert isinstance(msg, p.Event)
     session.events.append(msg)
-    log.info("Evento: %s", msg.model_dump(exclude={"v", "type"}))
+    del session.events[:-MAX_EVENTS_KEPT]
+    log.info("Evento: %s", msg.model_dump(exclude={"v", "type", "bot"}))
+    await session.server.brain.on_event(session, msg)

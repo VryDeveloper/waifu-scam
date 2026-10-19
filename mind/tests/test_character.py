@@ -30,3 +30,20 @@ def test_missing_name_is_clear_error(tmp_path):
     (tmp_path / "x" / "character.toml").write_text('language = "pt-BR"', encoding="utf-8")
     with pytest.raises(CharacterError, match="name"):
         load_character(tmp_path, "x")
+
+
+def test_username_defaults_from_name(tmp_path):
+    (tmp_path / "x").mkdir()
+    (tmp_path / "x" / "character.toml").write_text('name = "Lumi Chan!"', encoding="utf-8")
+    (tmp_path / "x" / "persona.md").write_text("oi", encoding="utf-8")
+    assert load_character(tmp_path, "x").username == "Lumi_Chan"
+
+
+def test_invalid_username_is_clear_error(tmp_path):
+    (tmp_path / "x").mkdir()
+    (tmp_path / "x" / "character.toml").write_text(
+        'name = "A"\n[minecraft]\nusername = "nome com espaço"', encoding="utf-8"
+    )
+    (tmp_path / "x" / "persona.md").write_text("oi", encoding="utf-8")
+    with pytest.raises(CharacterError, match="username"):
+        load_character(tmp_path, "x")

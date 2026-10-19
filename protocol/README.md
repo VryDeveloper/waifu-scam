@@ -27,6 +27,16 @@ Corpo                                   Mente
 
 Mensagem inválida → a Mente responde `{"type":"error","message":"..."}` e mantém a conexão.
 
+## Fase 1
+
+| Tipo | Direção | Para quê |
+|---|---|---|
+| `welcome` + `username`, `skin` | Mente → Corpo | Nome de player e textura assinada (ou `null`) |
+| `state` | Corpo → Mente, a cada 2 s | `online`, `alive`, `health`, `food`, posição, dimensão |
+| `event` `spawned` / `despawned` / `died` / `respawned` | Corpo → Mente | Ciclo de vida; `died` traz `message` com a mensagem de morte |
+| `event` `chat` | Corpo → Mente | Chat de players: `from`, `text` |
+| `chat.say` | Mente → Corpo | Ela fala no chat |
+
 ## Próximas fases
 
-`state`, `skill.start` / `skill.progress` / `skill.done` / `skill.failed` / `skill.cancel`, `chat.say`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.
+`skill.start` / `skill.progress` / `skill.done` / `skill.failed` / `skill.cancel`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

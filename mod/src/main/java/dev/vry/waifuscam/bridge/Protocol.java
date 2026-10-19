@@ -51,6 +51,34 @@ public final class Protocol {
 		return o.toString();
 	}
 
+	/** Algo aconteceu no jogo (chat, morte, respawn...). detail pode ser null. */
+	public static String event(String bot, String event, JsonObject fields) {
+		JsonObject o = envelope("event", bot);
+		o.addProperty("event", event);
+		if (fields != null) {
+			for (var e : fields.entrySet()) {
+				o.add(e.getKey(), e.getValue());
+			}
+		}
+		return o.toString();
+	}
+
+	public static String chatEvent(String bot, String from, String text) {
+		JsonObject f = new JsonObject();
+		f.addProperty("from", from);
+		f.addProperty("text", text);
+		return event(bot, "chat", f);
+	}
+
+	/** Snapshot periódico do corpo. */
+	public static String state(String bot, JsonObject state) {
+		JsonObject o = envelope("state", bot);
+		for (var e : state.entrySet()) {
+			o.add(e.getKey(), e.getValue());
+		}
+		return o.toString();
+	}
+
 	/** Lê e valida o envelope. Lança {@link ProtocolException} se a mensagem não for v1 válida. */
 	public static JsonObject parse(String raw) throws ProtocolException {
 		JsonElement el;

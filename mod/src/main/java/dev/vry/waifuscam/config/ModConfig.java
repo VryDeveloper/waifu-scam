@@ -26,6 +26,10 @@ public final class ModConfig {
 	@SerializedName("reconnect_seconds")
 	public int reconnectSeconds = 5;
 
+	/** Quando a personagem entra: "lan" (ao abrir a LAN), "world" (ao carregar o mundo) ou "command" (só /waifu spawn). */
+	@SerializedName("join_on")
+	public String joinOn = "lan";
+
 	/** Lê o arquivo; se não existir ou estiver quebrado, usa os padrões e grava um arquivo novo. */
 	public static ModConfig load(Path configDir) {
 		Path file = configDir.resolve(FILE_NAME);
@@ -51,6 +55,9 @@ public final class ModConfig {
 		}
 		if (reconnectSeconds < 1) {
 			reconnectSeconds = 5;
+		}
+		if (joinOn == null || !(joinOn.equals("lan") || joinOn.equals("world") || joinOn.equals("command"))) {
+			joinOn = "lan";
 		}
 	}
 

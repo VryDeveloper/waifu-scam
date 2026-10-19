@@ -21,6 +21,8 @@ class Settings:
     port: int
     character: str
     characters_dir: Path
+    data_dir: Path
+    mineskin_key: str
     log_level: str
 
     @classmethod
@@ -32,5 +34,7 @@ class Settings:
             port=int(_env("WAIFU_PORT", "8765")),
             character=_env("WAIFU_CHARACTER", "lumi"),
             characters_dir=chars,
+            data_dir=Path(_env("WAIFU_DATA_DIR", str(REPO_ROOT / "mind" / "data"))),
+            mineskin_key=os.getenv("MINESKIN_API_KEY", "").strip(),
             log_level=_env("WAIFU_LOG_LEVEL", "INFO").upper(),
         )

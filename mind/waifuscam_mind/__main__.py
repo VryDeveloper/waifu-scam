@@ -9,6 +9,7 @@ import sys
 from .character import CharacterError, load_character
 from .config import Settings
 from .server import MindServer
+from .skins import SkinResolver
 
 
 def main() -> None:
@@ -18,7 +19,8 @@ def main() -> None:
         character = load_character(settings.characters_dir, settings.character)
     except CharacterError as e:
         sys.exit(f"Erro na personagem: {e}")
-    server = MindServer(character, settings.host, settings.port)
+    skins = SkinResolver(settings.data_dir / "skin-cache.json", settings.mineskin_key)
+    server = MindServer(character, settings.host, settings.port, skins=skins)
     try:
         asyncio.run(server.serve_forever())
     except KeyboardInterrupt:

@@ -43,6 +43,13 @@ class Event(Envelope):
     event: str
 
 
+class State(Envelope):
+    """Snapshot periódico do corpo (a cada ~2 s). Campos variam conforme a fase."""
+
+    type: Literal["state"] = "state"
+    online: bool = False
+
+
 # ---- Mente → Corpo ---------------------------------------------------------
 
 
@@ -52,9 +59,23 @@ class CharacterInfo(BaseModel):
     language: str
 
 
+class SkinInfo(BaseModel):
+    value: str
+    signature: str
+
+
 class Welcome(Envelope):
     type: Literal["welcome"] = "welcome"
     character: CharacterInfo
+    username: str
+    skin: SkinInfo | None = None
+
+
+class ChatSay(Envelope):
+    """A personagem fala no chat do jogo."""
+
+    type: Literal["chat.say"] = "chat.say"
+    text: str
 
 
 class ErrorMsg(Envelope):
@@ -79,7 +100,9 @@ class Pong(Envelope):
 _BY_TYPE: dict[str, type[Envelope]] = {
     "hello": Hello,
     "event": Event,
+    "state": State,
     "welcome": Welcome,
+    "chat.say": ChatSay,
     "error": ErrorMsg,
     "ping": Ping,
     "pong": Pong,
