@@ -83,6 +83,10 @@ Habilidades novas: `hunt` (`animal`, `count`), `attack` (`count`) e `shelter`. `
 
 `state` ganha `threats` (`[{"type": "zombie", "distance": 4.2}]`), `sky` (ao ar livre?), `light`, `in_water`, `on_fire`, `air` e `reflex` (o que o reflexo está fazendo, ex.: `comendo`). Evento novo: `event` `danger` com `message` = tipo do bicho (no máximo um a cada 20 s por tipo).
 
+## Fase 6
+
+Evento novo do Corpo: `event` `remember_place` (`name`, `x`, `y`, `z`, `dimension`, `from`), mandado pelo `/waifu remember`. A memória fica toda na Mente; `goto` com o nome de um lugar lembrado vira coordenadas antes de sair para o Corpo.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

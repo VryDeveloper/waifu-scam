@@ -162,6 +162,11 @@ public final class WaifuScamMod implements ModInitializer {
 		}
 	}
 
+	/** Evento com campos livres para a Mente (usado pelos comandos). */
+	public void sendMindEvent(String event, JsonObject fields) {
+		sendToMind(Protocol.event(botId, event, fields));
+	}
+
 	private void sendEvent(String event, String detail) {
 		JsonObject fields = new JsonObject();
 		if (detail != null) {

@@ -10,7 +10,7 @@
 
 Ela joga como uma player de verdade: tem vida e fome, vontades próprias, conversa pelo chat com a personalidade que você escrever e decide se aceita, adia ou recusa os seus pedidos. A IA roda em planos gratuitos (Groq, Gemini, OpenRouter) ou localmente com Ollama.
 
-> **Status: fase 5 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa com a personalidade dela usando IA gratuita, anda, minera, crafta, funde, caça, come, usa baús e te entrega itens ("faz uma picareta de pedra" ela resolve do zero). E tem vontade própria: foge de creeper, revida, come quando tem fome, cava um abrigo quando anoitece, adia pedidos quando tem algo mais urgente e, parada, decide sozinha o que fazer. Veja o [roadmap](#roadmap).
+> **Status: fase 6 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa com a personalidade dela usando IA gratuita, anda, minera, crafta, funde, caça, come, usa baús e te entrega itens ("faz uma picareta de pedra" ela resolve do zero). E tem vontade própria: foge de creeper, revida, come quando tem fome, cava um abrigo quando anoitece, adia pedidos quando tem algo mais urgente e, parada, decide sozinha o que fazer. E lembra: lugares (a base, onde morreu), quem é quem, o que prometeu e um diário do que aconteceu, mesmo depois de reiniciar. Veja o [roadmap](#roadmap).
 
 ## Como funciona
 
@@ -93,7 +93,7 @@ cd mod
 ./gradlew build
 ```
 
-Copie `mod/build/libs/waifuscam-0.5.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
+Copie `mod/build/libs/waifuscam-0.6.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
 
 | Campo | Padrão | O que faz |
 |---|---|---|
@@ -124,10 +124,13 @@ Copie `mod/build/libs/waifuscam-0.5.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu hunt <bicho>` | Ela caça `cow`, `pig`, `sheep`, `chicken` ou `rabbit` |
 | `/waifu attack` | Ela luta contra os monstros por perto |
 | `/waifu reflexes on\|off` | Liga ou desliga os reflexos (fugir, revidar, comer sozinha) |
+| `/waifu remember <nome>` | Ela guarda na memória o lugar onde você está (ex.: `/waifu remember base`) |
 
 Os comandos obedecem na hora, para testar. Pelo chat é diferente: você pede ("lumi, me segue", "faz uma picareta de pedra", "me dá 10 tochas", "guarda as coisas no baú") e ela decide se topa, do jeito da persona. Sem chave de IA, ela entende só "me segue", "vem aqui" e "para".
 
 Sem ninguém pedindo nada, ela vive: por reflexo foge de creeper, revida quem bate nela e come quando a fome aperta; quando anoitece ao ar livre, cava um buraco, fecha em cima e sai de manhã tapando o buraco. Parada há um tempo (`[will] think_every`, padrão 3 min), ela decide sozinha o que fazer, pesando as necessidades do `character.toml` (`[needs]`). Pedido que ela topa mas não pode fazer agora vira promessa, e ela cumpre quando ficar livre.
+
+Ela lembra das coisas entre uma sessão e outra (`mind/data/memory/<personagem>.json`, fora do Git): lugares ("lumi, aqui é a nossa base" e depois "volta pra base"), o lugar onde morreu pela última vez, quem ela conhece e há quanto tempo, notas que ela decide guardar, promessas pendentes, as últimas falas da conversa e um diário que ela escreve ao amanhecer.
 
 Ela não desmonta construção: tronco ela só tira de árvore (com folha natural por perto), pedregulho só de pedra, e nunca quebra tábua, vidro ou bloco colocado por player para conseguir material. Não mexe em fornalha de outra pessoa.
 
@@ -179,6 +182,7 @@ waifu-scam/
 │   │   ├── protocol.py         # modelos Pydantic do protocolo
 │   │   ├── character.py        # carrega o pacote de personagem
 │   │   ├── skins.py            # skin por conta (Mojang) ou PNG (MineSkin), com cache
+│   │   ├── memory.py           # memória de longo prazo: lugares, pessoas, notas, diário
 │   │   ├── brain/              # o que ela faz com os eventos (eco ou IA) e as ações que ela escolhe
 │   │   ├── llm/                # provedores gratuitos com fallback e orçamento diário
 │   │   └── sim/body.py         # corpo simulado para testes
@@ -198,7 +202,7 @@ waifu-scam/
 | 3 · Movimento 🧪 | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
 | 4 · Mãos 🧪 | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
 | 5 · Vontade própria 🧪 | Necessidades, reflexos, abrigo, caça, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |
-| 6 · Memória | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |
+| 6 · Memória 🧪 | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |
 | 7 · Polimento | Combate, dormir, abrigo, várias personagens, plugins | Contínuo |
 
 ## Desenvolvimento

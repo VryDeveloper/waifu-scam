@@ -10,6 +10,7 @@ from .brain import Brain, ChatBrain, EchoBrain
 from .character import Character, CharacterError, load_character
 from .config import Settings
 from .llm import Budget, LLMClient, load_providers
+from .memory import Memory
 from .server import MindServer
 from .skins import SkinResolver
 
@@ -27,7 +28,8 @@ def build_brain(character: Character, settings: Settings) -> Brain:
     log.info("IA: %s", ", ".join(f"{pr.name} ({pr.model})" for pr in providers))
     llm = LLMClient(providers, temperature=float(cfg.get("temperature", 0.9)))
     budget = Budget(int(cfg.get("daily_limit", 800)), settings.data_dir / f"budget-{character.id}.json")
-    return ChatBrain(character, llm, budget)
+    memory = Memory(settings.data_dir / "memory" / f"{character.id}.json")
+    return ChatBrain(character, llm, budget, memory=memory)
 
 
 def main() -> None:

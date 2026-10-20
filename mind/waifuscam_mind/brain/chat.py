@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from .. import protocol as p
 from ..character import Character
 from ..llm import AllProvidersFailed, Budget, LLMClient
+from ..memory import Memory
 from .actions import describe_actions, resolve, resolve_later
 from .base import Mouth
 from .needs import describe_needs
@@ -36,6 +37,9 @@ CONVERSATION_WINDOW = 45.0  # segundos em que a mesma pessoa ainda está "na con
 DEATH_COMMENT_COOLDOWN = 20.0
 FAILURE_COMMENT_COOLDOWN = 15.0
 DANGER_COMMENT_COOLDOWN = 90.0
+DIARY_MIN_INTERVAL = 600.0  # segundos reais entre entradas do diário
+DIARY_MIN_LINES = 6  # falas novas desde a última entrada
+MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
 MAX_LINE = 240
 MAX_TYPING_DELAY = 4.0
@@ -48,6 +52,9 @@ CHAT_RULES = """
 - Você consegue andar, seguir, minerar, coletar, craftar, fundir, comer, usar baús e entregar itens (veja "Ações").
   Ainda não consegue lutar, dormir nem construir. Se pedirem isso, responda de um jeito natural, sem prometer.
 - Pedido grande ("faz uma picareta de pedra") é uma ação só: o seu corpo sabe todos os passos.
+- Memória: para guardar o lugar onde você está agora, coloque [lembrar: nome] (ex.: quando dizem "aqui é a
+  nossa base" → [lembrar: base]); para esquecer, [esquecer: nome]. Para guardar algo importante sobre alguém ou
+  sobre o mundo, [nota: frase curta]. Use pouco, só para o que vale lembrar amanhã.
 - Você decide os pedidos: topa (coloque a ação), adia (coloque [depois: ...] e diga quando) ou recusa, do seu jeito.
   Adie quando tiver algo mais urgente (fome, noite, perigo). Seu corpo foge, revida e come sozinho por reflexo.
 """
@@ -139,8 +146,10 @@ class ChatBrain:
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        memory: Memory | None = None,
     ):
         self.character = character
+        self.memory = memory if memory is not None else Memory(None)
         self.llm = llm
         self.budget = budget
         self._clock = clock
@@ -169,6 +178,13 @@ class ChatBrain:
             budget_fraction=lambda: self.budget.remaining / limit,
             clock=clock,
         )
+        # Continua de onde parou: últimas falas e promessas da sessão anterior.
+        self.history.extend(self.memory.history[-HISTORY_LINES:])
+        for pr in self.memory.promises:
+            self.will.promise(pr.get("skill", ""), pr.get("args") or {}, pr.get("requester"), pr.get("said", ""))
+        self._last_day_time: int | None = None
+        self._last_diary = self._clock()
+        self._lines_since_diary = 0
         self._last_budget_notice = float("-inf")
 
     # ---- quando responder -----------------------------------------------------
@@ -200,11 +216,23 @@ class ChatBrain:
             case "died":
                 message = data.get("message") or "você morreu"
                 self._note(f"você morreu: {message}")
+                st = mouth.state.model_dump() if mouth.state else {}
+                if "x" in st:
+                    self.memory.remember_place(
+                        "ultima_morte", st["x"], st["y"], st["z"], st.get("dimension", ""), "onde seus itens caíram"
+                    )
                 if self._clock() - self._last_death_comment >= DEATH_COMMENT_COOLDOWN:
                     self._last_death_comment = self._clock()
                     await self._speak(
                         mouth, instruction=f"Você acabou de morrer ({message}). Reaja em uma frase curta."
                     )
+            case "remember_place":
+                name = str(data.get("name", "")).strip()
+                if name and all(k in data for k in ("x", "y", "z")):
+                    key = self.memory.remember_place(
+                        name, data["x"], data["y"], data["z"], str(data.get("dimension", ""))
+                    )
+                    self._note(f"{data.get('from', 'alguém')} marcou um lugar para você lembrar: {key}")
             case "respawned":
                 self._note("você renasceu")
             case "despawned":
@@ -222,6 +250,8 @@ class ChatBrain:
             case "chat":
                 sender, text = str(data.get("from", "?")), str(data.get("text", ""))
                 self.will.heard_chat()
+                self.memory.talked(sender)
+                self._lines_since_diary += 1
                 self.history.append({"role": "user", "content": f"{sender}: {text}"})
                 self._seq += 1
                 online = mouth.state is not None and mouth.state.online
@@ -229,7 +259,50 @@ class ChatBrain:
                     await self._speak(mouth, partner=sender, seq=self._seq)
 
     async def on_state(self, mouth: Mouth, state: p.State) -> None:
+        s = state.model_dump()
+        if state.online:
+            self.memory.seen([n for n in s.get("players", []) if n != self.character.username])
+        await self._maybe_write_diary(s.get("time_of_day"))
         await self.will.on_state(mouth, state)
+        self._sync_promises()
+
+    def _sync_promises(self) -> None:
+        self.memory.set_promises(
+            [
+                {"skill": pr.skill, "args": pr.args, "requester": pr.requester, "said": pr.said}
+                for pr in self.will.promises
+            ]
+        )
+
+    async def _maybe_write_diary(self, day_time: int | None) -> None:
+        """Ao amanhecer no jogo (e com coisa nova para contar), ela escreve no diário."""
+        previous, self._last_day_time = self._last_day_time, day_time
+        if day_time is None or previous is None:
+            return
+        morning = previous >= 22000 and day_time < 2000
+        if not morning or self._lines_since_diary < DIARY_MIN_LINES:
+            return
+        if self._clock() - self._last_diary < DIARY_MIN_INTERVAL or not self.budget.try_spend():
+            return
+        self._last_diary = self._clock()
+        self._lines_since_diary = 0
+        messages = [
+            {"role": "system", "content": self.character.persona()},
+            *self.history,
+            {
+                "role": "user",
+                "content": "[Amanheceu. Escreva no seu diário, em primeira pessoa e em 2 ou 3 frases curtas, o que "
+                "aconteceu de importante desde a última vez: com quem você esteve, o que fez, o que prometeu. "
+                "Sem markdown, sem data.]",
+            },
+        ]
+        try:
+            text = await self.llm.chat(messages, max_tokens=300)
+        except AllProvidersFailed:
+            return
+        entry = " ".join(clean_reply(text, self._names) or [text.strip()])[:400]
+        self.memory.write_diary(entry)
+        log.info("Diário: %s", entry)
 
     async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None:
         if isinstance(msg, p.SkillDone):
@@ -277,6 +350,10 @@ class ChatBrain:
             persona = self.character.persona()
             situation = describe_situation(mouth.state, self.character.username)
             feelings = describe_needs(self.will.needs(mouth.state))
+            online = mouth.state.model_dump().get("players", []) if mouth.state else []
+            remembered = self.memory.describe(online, self.character.username)
+            if remembered:
+                feelings = f"{remembered}\n{feelings}"
             promises = self.will.pending()
             if promises:
                 feelings += "\n## Você prometeu fazer depois\n" + "\n".join(f"- {pr.describe()}" for pr in promises)
@@ -298,8 +375,12 @@ class ChatBrain:
             players = [n for n in (mouth.state.model_dump().get("players", []) if mouth.state else [])]
             text, action = resolve(reply, skills, partner, players)
             text, later = resolve_later(text, skills, partner, players)
+            text = self._memory_tags(text, mouth, players)
+            action = self._resolve_places(action, players)
+            later = self._resolve_places(later, players)
             if later is not None:
                 self.will.promise(later.skill, later.args, partner)
+                self._sync_promises()
             lines = clean_reply(text, self._names)
             if not lines and fallback and action is None:
                 lines = [fallback]
@@ -320,10 +401,38 @@ class ChatBrain:
                     self.history[-1] = {"role": "assistant", "content": f"{last}\n{tag}"}
                 else:
                     self.history.append({"role": "assistant", "content": tag})
+            self._lines_since_diary += len(lines)
+            self.memory.set_history(list(self.history))
             if lines or action is not None:
                 self._last_spoke_at = self._clock()
                 if partner:
                     self._last_partner = partner
+
+    def _memory_tags(self, text: str, mouth: Mouth, players: list[str]) -> str:
+        """Tira as tags de memória da fala e grava o que elas pedem."""
+        st = mouth.state.model_dump() if mouth.state else {}
+        for kind, value in MEMORY_TAG.findall(text):
+            kind, value = kind.lower(), value.strip()
+            if kind == "lembrar" and "x" in st:
+                self.memory.remember_place(value, st["x"], st["y"], st["z"], st.get("dimension", ""))
+            elif kind == "esquecer":
+                self.memory.forget_place(value)
+            elif kind == "nota":
+                about = [n for n in self.memory.people if re.search(rf"\b{re.escape(n)}\b", value, re.IGNORECASE)]
+                self.memory.note(value, about)
+        return MEMORY_TAG.sub("", text)
+
+    def _resolve_places(self, action, players: list[str]):
+        """[ação: goto base] → coordenadas da base, se "base" não for um player online."""
+        if action is None or action.skill != "goto" or "player" not in action.args:
+            return action
+        name = str(action.args["player"])
+        if name.lower() in {n.lower() for n in players}:
+            return action
+        place = self.memory.place(name)
+        if place is None:
+            return action
+        return type(action)(action.skill, {"x": place.x, "y": place.y, "z": place.z})
 
     async def _out_of_budget(self, mouth: Mouth) -> None:
         now = self._clock()

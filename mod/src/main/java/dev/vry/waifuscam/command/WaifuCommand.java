@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * /waifu eat | deposit | inv — comer, guardar no baú, ver o inventário
  * /waifu shelter | attack | hunt <bicho> — abrigo para a noite, lutar, caçar
  * /waifu reflexes on|off — liga/desliga os reflexos (fugir, revidar, comer)
+ * /waifu remember <nome> — ela guarda na memória o lugar onde você está
  */
 public final class WaifuCommand {
 	private static final AtomicInteger COMMAND_IDS = new AtomicInteger();
@@ -174,6 +175,27 @@ public final class WaifuCommand {
 				.then(Commands.literal("reflexes")
 						.then(Commands.literal("on").executes(ctx -> reflexes(ctx.getSource(), mod, true)))
 						.then(Commands.literal("off").executes(ctx -> reflexes(ctx.getSource(), mod, false))))
+				// ---- fase 6: memória ----
+				.then(Commands.literal("remember")
+						.then(Commands.argument("name", StringArgumentType.greedyString()).executes(ctx -> {
+							CommandSourceStack src = ctx.getSource();
+							if (!mod.isMindConnected()) {
+								src.sendFailure(Component.literal("A Mente não está conectada."));
+								return 0;
+							}
+							String name = StringArgumentType.getString(ctx, "name");
+							Vec3 pos = src.getPosition();
+							JsonObject fields = new JsonObject();
+							fields.addProperty("name", name);
+							fields.addProperty("x", pos.x);
+							fields.addProperty("y", pos.y);
+							fields.addProperty("z", pos.z);
+							fields.addProperty("dimension", src.getLevel().dimension().identifier().toString());
+							fields.addProperty("from", src.getTextName());
+							mod.sendMindEvent("remember_place", fields);
+							src.sendSuccess(() -> Component.literal("Ela vai lembrar deste lugar como \"" + name + "\"."), false);
+							return 1;
+						})))
 				.then(Commands.literal("inv").executes(ctx -> {
 					CompanionManager companions = mod.companions();
 					CompanionPlayer p = companions == null ? null : companions.player();

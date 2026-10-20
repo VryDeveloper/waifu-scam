@@ -47,3 +47,7 @@ O Mineflayer, usado pela maioria dos bots de IA de Minecraft, só suporta oficia
 - **Reflexos (Corpo, `bot/Reflexes`)** — rodam a cada tick antes da habilidade e a pausam enquanto agem: fugir de creeper e de briga com pouca vida, revidar quem está mirando nela, comer quando a fome passa de 15, subir para respirar, pular para sair da lava. A IA só fica sabendo depois (`danger`).
 - **Necessidades (Mente, `brain/needs.py`)** — fome, segurança, descanso, social, progresso, conforto e curiosidade viram urgências de 0 a 1, multiplicadas pelos pesos da personagem, e entram no prompt como "o que você mais quer agora".
 - **Vontade (Mente, `brain/will.py`)** — quando ela está parada: abrigo ao anoitecer (instinto, sem gastar IA), promessas pendentes, fome sem comida e tédio viram uma decisão da IA. Pedidos adiados com `[depois: ...]` viram promessas e são cumpridos quando ela fica livre.
+
+## Memória (fase 6)
+
+`mind/waifuscam_mind/memory.py` guarda em JSON (gravação atômica, nunca fica pela metade): lugares, pessoas (quando conheceu, quantas conversas, notas), notas soltas, diário, promessas e as últimas 30 falas. A IA escreve com tags no fim da resposta — `[lembrar: base]`, `[esquecer: base]`, `[nota: ...]` — e lê pelo prompt (lugares, quem está online e o que ela sabe da pessoa, notas e as últimas entradas do diário). O diário é escrito por ela ao amanhecer no jogo, se teve conversa desde a última entrada (1 chamada de IA por dia de jogo, no máximo a cada 10 min).
