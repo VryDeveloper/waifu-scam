@@ -6,6 +6,7 @@ from waifuscam_mind import protocol as p
 from waifuscam_mind.brain.chat import ChatBrain, clean_reply, describe_situation, time_of_day
 from waifuscam_mind.character import load_character
 from waifuscam_mind.llm import AllProvidersFailed, Budget
+from waifuscam_mind.sim.body import SIM_SKILLS
 
 
 class FakeLLM:
@@ -22,12 +23,21 @@ class FakeLLM:
 
 
 class FakeMouth:
-    def __init__(self, players=("Vry",)):
+    def __init__(self, players=("Vry",), skills=SIM_SKILLS):
         self.said: list[str] = []
+        self.started: list[tuple[str, dict]] = []
+        self.skills = list(skills)
         self.state = p.State(online=True, health=20.0, max_health=20.0, food=18, players=["Lumi", *players])
 
     async def say(self, text):
         self.said.append(text)
+
+    async def start_skill(self, name, args=None):
+        self.started.append((name, args or {}))
+        return f"mind-{len(self.started)}"
+
+    async def cancel_skill(self):
+        self.started.append(("cancel", {}))
 
 
 class Clock:
@@ -148,6 +158,62 @@ async def test_budget_runs_out_with_one_notice(lumi):
     assert mouth.said[0] == "um"
     assert len(mouth.said) == 2 and "energia" in mouth.said[1]
     assert len(llm.calls) == 1
+
+
+# ---- fase 3: ações -------------------------------------------------------------
+
+
+async def test_reply_with_action_starts_skill_and_hides_the_tag(lumi):
+    llm = FakeLLM("bora, tô indo\n[ação: follow]")
+    mouth = FakeMouth()
+    b = brain(lumi, llm)
+    await b.on_event(mouth, chat("Vry", "me segue"))
+    assert mouth.started == [("follow", {"player": "Vry"})]
+    assert mouth.said == ["bora, tô indo"]
+    assert b.history[-1] == {"role": "assistant", "content": "bora, tô indo\n[ação: follow Vry]"}
+    system = llm.calls[0][0]["content"]
+    assert "## Ações" in system and "[ação: follow <player>]" in system
+
+
+async def test_refusing_means_no_action(lumi):
+    mouth = FakeMouth()
+    await brain(lumi, FakeLLM("agora não, tô com fome")).on_event(mouth, chat("Vry", "me segue"))
+    assert mouth.started == [] and mouth.said == ["agora não, tô com fome"]
+
+
+async def test_action_without_words_still_acts(lumi):
+    mouth = FakeMouth()
+    await brain(lumi, FakeLLM("[ação: stop]")).on_event(mouth, chat("Vry", "para"))
+    assert mouth.started == [("stop", {})] and mouth.said == []
+
+
+async def test_old_body_without_catalog_gets_no_actions_section(lumi):
+    llm = FakeLLM("oi\n[ação: follow]")
+    mouth = FakeMouth(skills=())
+    await brain(lumi, llm).on_event(mouth, chat("Vry", "me segue"))
+    assert mouth.started == [] and mouth.said == ["oi"]
+    assert "## Ações" not in llm.calls[0][0]["content"]
+
+
+async def test_situation_says_what_she_is_doing(lumi):
+    state = p.State(online=True, skill={"id": "mind-1", "name": "follow", "doing": "seguindo Vry"})
+    assert "Agora você está: seguindo Vry" in describe_situation(state, "Lumi")
+    assert "parada" in describe_situation(p.State(online=True), "Lumi")
+
+
+async def test_comments_on_real_failures_only(lumi):
+    clock = Clock()
+    llm = FakeLLM("aff, a Ana nem tá aqui", "travei")
+    mouth = FakeMouth()
+    b = brain(lumi, llm, clock=clock)
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-1", skill="follow", reason="Ana não está online"))
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-2", skill="follow", reason="mandaram parar", cancelled=True))
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-3", skill="goto", reason="fiquei presa"))  # cooldown
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-4", skill="goto"))
+    assert mouth.said == ["aff, a Ana nem tá aqui"]
+    assert "Ana não está online" in llm.calls[0][-1]["content"]
+    notes = [m["content"] for m in b.history if m["role"] == "user"]
+    assert "[follow parou: mandaram parar]" in notes and "[você terminou: goto]" in notes
 
 
 # ---- utilitários ---------------------------------------------------------------

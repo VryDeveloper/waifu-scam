@@ -47,6 +47,18 @@
     },
     {
       "$ref": "#/$defs/chat.say"
+    },
+    {
+      "$ref": "#/$defs/skill.start"
+    },
+    {
+      "$ref": "#/$defs/skill.cancel"
+    },
+    {
+      "$ref": "#/$defs/skill.done"
+    },
+    {
+      "$ref": "#/$defs/skill.failed"
     }
   ],
   "$defs": {
@@ -77,6 +89,13 @@
           "examples": [
             "26.3"
           ]
+        },
+        "skills": {
+          "type": "array",
+          "description": "Catálogo de habilidades que o corpo executa (fase 3). A Mente só pede o que estiver aqui.",
+          "items": {
+            "$ref": "#/$defs/skillSpec"
+          }
         }
       },
       "required": [
@@ -274,6 +293,27 @@
             "rain",
             "thunder"
           ]
+        },
+        "skill": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Habilidade rodando agora (fase 3).",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "doing": {
+              "type": "string",
+              "examples": [
+                "seguindo Vry"
+              ]
+            }
+          }
         }
       },
       "required": [
@@ -294,6 +334,110 @@
       "required": [
         "type",
         "text"
+      ]
+    },
+    "skillSpec": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "examples": [
+            "follow",
+            "goto",
+            "stop"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "description": "JSON Schema dos argumentos."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "skill.start": {
+      "description": "Mente → Corpo. Começa uma habilidade do catálogo; a que estava rodando é interrompida. 'stop' para tudo.",
+      "properties": {
+        "type": {
+          "const": "skill.start"
+        },
+        "id": {
+          "type": "string",
+          "description": "Escolhido por quem pede; volta em skill.done/skill.failed."
+        },
+        "skill": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "skill"
+      ]
+    },
+    "skill.cancel": {
+      "description": "Mente → Corpo. Para a habilidade atual.",
+      "properties": {
+        "type": {
+          "const": "skill.cancel"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "skill.done": {
+      "description": "Corpo → Mente. A habilidade terminou bem.",
+      "properties": {
+        "type": {
+          "const": "skill.done"
+        },
+        "id": {
+          "type": "string"
+        },
+        "skill": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "skill"
+      ]
+    },
+    "skill.failed": {
+      "description": "Corpo → Mente. A habilidade não terminou.",
+      "properties": {
+        "type": {
+          "const": "skill.failed"
+        },
+        "id": {
+          "type": "string"
+        },
+        "skill": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo em português."
+        },
+        "cancelled": {
+          "type": "boolean",
+          "description": "true = não foi falha: trocada por outra, mandaram parar, ela morreu ou saiu."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "skill",
+        "reason"
       ]
     }
   }

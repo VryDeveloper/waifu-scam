@@ -10,7 +10,7 @@
 
 Ela joga como uma player de verdade: tem vida e fome, vontades próprias, conversa pelo chat com a personalidade que você escrever e decide se aceita, adia ou recusa os seus pedidos. A IA roda em planos gratuitos (Groq, Gemini, OpenRouter) ou localmente com Ollama.
 
-> **Status: fase 2 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, e conversa no chat com a personalidade dela usando IA gratuita. Ela ainda não anda nem mexe no mundo — isso começa na fase 3. Veja o [roadmap](#roadmap).
+> **Status: fase 3 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa no chat com a personalidade dela usando IA gratuita e já anda: te segue, vem até você e vai até coordenadas, desviando de buracos, lava e paredes. Ela ainda não quebra blocos nem pega itens — isso é a fase 4. Veja o [roadmap](#roadmap).
 
 ## Como funciona
 
@@ -105,10 +105,16 @@ Copie `mod/build/libs/waifuscam-0.3.0.jar` e o jar da Fabric API para a pasta `m
 
 | Comando | O que faz |
 |---|---|
-| `/waifu status` | Conexão com a Mente, personagem, vida e fome dela |
+| `/waifu status` | Conexão com a Mente, personagem, vida, fome e o que ela está fazendo |
 | `/waifu ping` | Mede a latência até a Mente |
 | `/waifu spawn` | Chama a personagem para perto de você |
 | `/waifu despawn` | Tira ela do mundo (o inventário fica salvo) |
+| `/waifu follow [player]` | Ela segue você (ou outro player) até mandarem parar |
+| `/waifu come` | Ela vem até você |
+| `/waifu goto <x y z>` | Ela vai até o ponto (aceita `~`) |
+| `/waifu stop` | Ela para o que está fazendo |
+
+Os comandos de movimento obedecem na hora, para testar. Pelo chat é diferente: você pede ("lumi, me segue", "vem aqui", "para") e ela decide se topa, do jeito da persona. Sem chave de IA, ela entende só esses três pedidos fixos.
 
 Ela é um player de verdade: aparece no Tab, sente fome, pode morrer (solta os itens e renasce sozinha) e pode ser expulsa com `/kick`. No chat, ela responde quando você fala o nome dela, quando só tem você online com ela, ou quando você continua uma conversa que ela acabou de responder. Ela também cumprimenta ao entrar e comenta quando morre.
 
@@ -145,6 +151,9 @@ waifu-scam/
 │       ├── bot/                # a personagem: fake player, conexão falsa, ciclo de vida
 │       ├── mixin/              # ajustes no jogo (respawn, física, conexão)
 │       ├── bridge/             # cliente WebSocket + protocolo (sem dependência do Minecraft)
+│       ├── pathing/            # A* em grade de blocos (testado sem o jogo)
+│       ├── control/            # "teclas" dela (andar, pular, olhar) e seguidor de caminho
+│       ├── skill/              # habilidades (seguir, ir até) e o catálogo enviado à Mente
 │       ├── command/            # /waifu
 │       └── config/             # config/waifuscam.json
 ├── mind/           # Mente: Python
@@ -153,7 +162,7 @@ waifu-scam/
 │   │   ├── protocol.py         # modelos Pydantic do protocolo
 │   │   ├── character.py        # carrega o pacote de personagem
 │   │   ├── skins.py            # skin por conta (Mojang) ou PNG (MineSkin), com cache
-│   │   ├── brain/              # o que ela faz com os eventos (eco ou conversa com IA)
+│   │   ├── brain/              # o que ela faz com os eventos (eco ou IA) e as ações que ela escolhe
 │   │   ├── llm/                # provedores gratuitos com fallback e orçamento diário
 │   │   └── sim/body.py         # corpo simulado para testes
 │   └── tests/
@@ -168,8 +177,8 @@ waifu-scam/
 |---|---|---|
 | 0 · Fundação ✅ | Ambiente Fabric 26.3, esqueleto da Mente, WebSocket | O mod carrega e a Mente responde ao ping |
 | 1 · O corpo existe ✅ | Fake player entra ao abrir a LAN, skin, eco de chat | Ela aparece no Tab, sente fome e morre de verdade |
-| **2 · Conversa** 🧪 | Chat com a persona, fallback de provedores, orçamento | Você conversa com ela pelo chat |
-| 3 · Movimento | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
+| 2 · Conversa ✅ | Chat com a persona, fallback de provedores, orçamento | Você conversa com ela pelo chat |
+| **3 · Movimento** 🧪 | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
 | 4 · Mãos | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
 | 5 · Vontade própria | Necessidades, decisão por tool calling, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |
 | 6 · Memória | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |

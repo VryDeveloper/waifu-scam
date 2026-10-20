@@ -42,3 +42,40 @@ def test_rejects_invalid(raw):
 def test_dump_roundtrip():
     out = p.dump(p.Pong(bot="lumi", id="x"))
     assert json.loads(out) == {"v": 1, "bot": "lumi", "type": "pong", "id": "x"}
+
+
+# ---- fase 3 ----------------------------------------------------------------
+
+
+def test_hello_carries_skill_catalog():
+    msg = p.parse(
+        '{"v":1,"bot":null,"type":"hello","protocol":1,"body":"fabric","body_version":"0.3.0",'
+        '"skills":[{"name":"follow","description":"seguir","params":{"type":"object",'
+        '"properties":{"player":{"type":"string"}}}}]}'
+    )
+    assert isinstance(msg, p.Hello)
+    assert msg.skills[0].name == "follow" and msg.skills[0].arg_names == ["player"]
+
+
+def test_old_hello_without_skills_still_parses():
+    msg = p.parse('{"v":1,"type":"hello","protocol":1,"body":"fabric","body_version":"0.2.0"}')
+    assert isinstance(msg, p.Hello) and msg.skills == []
+
+
+def test_skill_messages():
+    done = p.parse('{"v":1,"bot":"lumi","type":"skill.done","id":"mind-1","skill":"goto"}')
+    failed = p.parse(
+        '{"v":1,"bot":"lumi","type":"skill.failed","id":"mind-2","skill":"follow",'
+        '"reason":"Ana não está online","cancelled":false}'
+    )
+    assert isinstance(done, p.SkillDone) and isinstance(failed, p.SkillFailed)
+    assert failed.reason == "Ana não está online" and not failed.cancelled
+    start = json.loads(p.dump(p.SkillStart(bot="lumi", id="mind-3", skill="follow", args={"player": "Vry"})))
+    assert start == {
+        "v": 1,
+        "bot": "lumi",
+        "type": "skill.start",
+        "id": "mind-3",
+        "skill": "follow",
+        "args": {"player": "Vry"},
+    }

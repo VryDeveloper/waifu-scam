@@ -103,6 +103,11 @@ public class CompanionPlayer extends ServerPlayer {
 			connection.resetPosition();
 			level().getChunkSource().move(this);
 		}
+		// As "teclas" que as habilidades apertaram no tick anterior.
+		CompanionManager manager = WaifuScamMod.instance().companions();
+		if (manager != null) {
+			manager.controls().applyTo(this);
+		}
 		super.tick();
 		doTick();
 	}

@@ -8,9 +8,11 @@ Brain (pasta brain/), que pode ser trocado sem mexer aqui.
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
@@ -40,6 +42,8 @@ class Session:
     state: p.State | None = None
     events: list[p.Event] = field(default_factory=list)
     tasks: set[asyncio.Task] = field(default_factory=set)
+    skills: list[p.SkillSpec] = field(default_factory=list)  # catálogo que veio no hello
+    _skill_ids: itertools.count = field(default_factory=lambda: itertools.count(1))
 
     @property
     def character(self) -> Character:
@@ -53,6 +57,19 @@ class Session:
     async def say(self, text: str) -> None:
         log.info("%s diz: %s", self.character.name, text)
         await self.send(p.ChatSay(text=text))
+
+    def skill(self, name: str) -> p.SkillSpec | None:
+        return next((s for s in self.skills if s.name == name), None)
+
+    async def start_skill(self, name: str, args: dict[str, Any] | None = None) -> str:
+        """Pede para o corpo começar uma habilidade. O resultado chega em skill.done/skill.failed."""
+        skill_id = f"mind-{next(self._skill_ids)}"
+        log.info("%s vai fazer %s %s", self.character.name, name, args or "")
+        await self.send(p.SkillStart(id=skill_id, skill=name, args=args or {}))
+        return skill_id
+
+    async def cancel_skill(self) -> None:
+        await self.send(p.SkillCancel())
 
     def run_in_background(self, coro) -> None:
         """Roda sem travar a leitura de mensagens (a IA leva segundos para responder)."""
@@ -76,6 +93,16 @@ class EventMouth:
 
     async def say(self, text: str) -> None:
         await self.session.say(text)
+
+    @property
+    def skills(self) -> list[p.SkillSpec]:
+        return self.session.skills
+
+    async def start_skill(self, name: str, args: dict[str, Any] | None = None) -> str:
+        return await self.session.start_skill(name, args)
+
+    async def cancel_skill(self) -> None:
+        await self.session.cancel_skill()
 
 
 class MindServer:
@@ -174,6 +201,7 @@ async def on_hello(session: Session, msg: p.Envelope) -> None:
         await session.conn.close()
         return
     session.body, session.body_version, session.minecraft = msg.body, msg.body_version, msg.minecraft
+    session.skills = list(msg.skills)
     c = session.character
     skin = await session.server.skins.resolve(c) if session.server.skins else None
     session.ready = True
@@ -185,7 +213,13 @@ async def on_hello(session: Session, msg: p.Envelope) -> None:
             skin=p.SkinInfo(value=skin.value, signature=skin.signature) if skin else None,
         )
     )
-    log.info("Aperto de mão ok: corpo %s %s, Minecraft %s", msg.body, msg.body_version, msg.minecraft)
+    log.info(
+        "Aperto de mão ok: corpo %s %s, Minecraft %s, habilidades: %s",
+        msg.body,
+        msg.body_version,
+        msg.minecraft,
+        ", ".join(s.name for s in msg.skills) or "nenhuma",
+    )
 
 
 @MindServer.handles("ping")
@@ -208,3 +242,16 @@ async def on_event(session: Session, msg: p.Envelope) -> None:
     log.info("Evento: %s", msg.model_dump(exclude={"v", "type", "bot"}))
     mouth = EventMouth(session, session.state)
     session.run_in_background(session.server.brain.on_event(mouth, msg))
+
+
+@MindServer.handles("skill.done")
+@MindServer.handles("skill.failed")
+async def on_skill_ended(session: Session, msg: p.Envelope) -> None:
+    assert isinstance(msg, p.SkillDone | p.SkillFailed)
+    if isinstance(msg, p.SkillFailed):
+        log.info("Habilidade %s (%s) não terminou: %s", msg.skill, msg.id, msg.reason)
+    else:
+        log.info("Habilidade %s (%s) terminou", msg.skill, msg.id)
+    handler = getattr(session.server.brain, "on_skill_ended", None)
+    if handler is not None:
+        session.run_in_background(handler(EventMouth(session, session.state), msg))

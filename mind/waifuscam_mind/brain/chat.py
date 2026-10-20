@@ -1,13 +1,15 @@
-"""Fase 2: ela conversa no chat com a persona, usando IA.
+"""Ela conversa no chat com a persona, usando IA, e age quando decide agir.
 
 Quando responde:
 - alguém fala o nome dela;
 - só existe um outro player online (então qualquer fala é com ela);
 - a mesma pessoa continua a conversa logo depois de ela responder.
 
-Também cumprimenta ao entrar no mundo e comenta quando morre. Ela ainda não
-age no mundo (isso vem nas fases 3 a 5), e a persona é avisada disso para não
-prometer o que não consegue fazer.
+Também cumprimenta ao entrar no mundo e comenta quando morre.
+
+Fase 3: junto com a fala, a IA pode escolher uma ação do catálogo do corpo
+(seguir, ir até, parar). Ela decide se topa o pedido; o pedido não vira ação
+sozinho. Se a ação falhar, ela comenta o motivo.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from .. import protocol as p
 from ..character import Character
 from ..llm import AllProvidersFailed, Budget, LLMClient
+from .actions import describe_actions, resolve
 from .base import Mouth
 
 log = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ log = logging.getLogger(__name__)
 HISTORY_LINES = 30
 CONVERSATION_WINDOW = 45.0  # segundos em que a mesma pessoa ainda está "na conversa"
 DEATH_COMMENT_COOLDOWN = 20.0
+FAILURE_COMMENT_COOLDOWN = 15.0
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
 MAX_LINE = 240
 MAX_TYPING_DELAY = 4.0
@@ -38,8 +42,9 @@ CHAT_RULES = """
 - Responda só com a mensagem que você vai digitar no chat: sem aspas, sem o seu nome na frente.
 - No máximo 2 frases curtas (até uns 200 caracteres). O chat do jogo é pequeno.
 - As mensagens chegam como "Nome: texto". Linhas entre colchetes são coisas que aconteceram no jogo, não falas.
-- Por enquanto você só consegue conversar: ainda não anda, não quebra blocos nem pega itens. Se pedirem algo assim,
-  responda de um jeito natural (ex.: que agora não dá, que vai depois), sem prometer que já está fazendo.
+- Você consegue andar, seguir alguém, ir até alguém ou até um lugar e parar (veja "Ações"). Ainda não consegue
+  quebrar ou colocar blocos, pegar itens, craftar, comer nem lutar. Se pedirem isso, responda de um jeito natural
+  (que agora não dá, que vai depois), sem prometer que já está fazendo.
 """
 
 
@@ -82,6 +87,8 @@ def describe_situation(state: p.State | None, me: str) -> str:
     others = [n for n in s.get("players", []) if n != me]
     if others:
         lines.append(f"- Online com você: {', '.join(others)}")
+    doing = (s.get("skill") or {}).get("doing") if isinstance(s.get("skill"), dict) else None
+    lines.append(f"- Agora você está: {doing}" if doing else "- Agora você está parada, sem fazer nada.")
     return "\n".join(lines)
 
 
@@ -135,6 +142,7 @@ class ChatBrain:
         self._last_spoke_at = float("-inf")
         self._last_partner: str | None = None
         self._last_death_comment = float("-inf")
+        self._last_failure_comment = float("-inf")
         self._last_budget_notice = float("-inf")
 
     # ---- quando responder -----------------------------------------------------
@@ -183,6 +191,23 @@ class ChatBrain:
                 if online and self.is_addressed(sender, text, mouth.state):
                     await self._speak(mouth, partner=sender, seq=self._seq)
 
+    async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None:
+        if isinstance(msg, p.SkillDone):
+            if msg.skill != "stop":
+                self._note(f"você terminou: {msg.skill}")
+            return
+        self._note(f"{msg.skill} parou: {msg.reason}")
+        if msg.cancelled or not (mouth.state and mouth.state.online):
+            return
+        if self._clock() - self._last_failure_comment < FAILURE_COMMENT_COOLDOWN:
+            return
+        self._last_failure_comment = self._clock()
+        await self._speak(
+            mouth,
+            instruction=f"Você tentou fazer '{msg.skill}', mas não deu: {msg.reason}. Comente em uma frase curta.",
+            partner=self._last_partner,
+        )
+
     def _note(self, what: str) -> None:
         self.history.append({"role": "user", "content": f"[{what}]"})
 
@@ -210,10 +235,10 @@ class ChatBrain:
 
             persona = self.character.persona()
             situation = describe_situation(mouth.state, self.character.username)
-            messages = [
-                {"role": "system", "content": f"{persona}\n\n{situation}\n{CHAT_RULES}"},
-                *self.history,
-            ]
+            skills = list(getattr(mouth, "skills", None) or [])
+            actions = describe_actions(skills)
+            system = f"{persona}\n\n{situation}\n{CHAT_RULES}" + (f"\n{actions}\n" if actions else "")
+            messages = [{"role": "system", "content": system}, *self.history]
             if instruction:
                 messages.append({"role": "user", "content": f"[{instruction}]"})
 
@@ -225,14 +250,26 @@ class ChatBrain:
                     await mouth.say(fallback)
                 return
 
-            lines = clean_reply(reply, self._names)
-            if not lines and fallback:
+            players = [n for n in (mouth.state.model_dump().get("players", []) if mouth.state else [])]
+            text, action = resolve(reply, skills, partner, players)
+            lines = clean_reply(text, self._names)
+            if not lines and fallback and action is None:
                 lines = [fallback]
+            if action is not None:
+                # Começa a andar antes de digitar: parece mais vivo.
+                await mouth.start_skill(action.skill, action.args)
             for line in lines:
                 await self._sleep(min(MAX_TYPING_DELAY, len(line) / self.typing_speed))
                 await mouth.say(line)
                 self.history.append({"role": "assistant", "content": line})
-            if lines:
+            if action is not None:
+                args = " ".join(str(v) for v in action.args.values())
+                tag = f"[ação: {action.skill} {args}]".replace(" ]", "]")
+                if lines:
+                    self.history[-1] = {"role": "assistant", "content": f"{lines[-1]}\n{tag}"}
+                else:
+                    self.history.append({"role": "assistant", "content": tag})
+            if lines or action is not None:
                 self._last_spoke_at = self._clock()
                 if partner:
                     self._last_partner = partner

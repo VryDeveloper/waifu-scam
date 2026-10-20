@@ -1,5 +1,8 @@
 package dev.vry.waifuscam.bot;
 
+import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.skill.Skill;
+import dev.vry.waifuscam.skill.SkillContext;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -10,7 +13,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 /**
- * Cuida do ciclo de vida da personagem: entrar, sair, morrer e renascer.
+ * Cuida do ciclo de vida da personagem (entrar, sair, morrer, renascer) e roda
+ * a habilidade atual dela, uma de cada vez.
  *
  * Guarda a personagem pelo UUID, não pela instância: a cada respawn o jogo
  * cria um ServerPlayer novo.
@@ -19,17 +23,40 @@ public final class CompanionManager {
 	/** Ticks entre morrer e apertar "Respawn" (2 s). */
 	private static final int RESPAWN_DELAY_TICKS = 40;
 
+	/** Distância para ela olhar para alguém quando está parada. */
+	private static final double LOOK_AROUND_RANGE = 8;
+
+	/**
+	 * Avisa a Mente quando uma habilidade termina. reason == null quando deu certo;
+	 * cancelled == true quando não foi falha da habilidade: foi trocada, mandaram
+	 * parar, ela morreu ou saiu do mundo.
+	 */
+	@FunctionalInterface
+	public interface SkillListener {
+		void onSkillEnded(String id, String skill, String reason, boolean cancelled);
+	}
+
 	private final MinecraftServer server;
 	private final BiConsumer<String, String> events; // (evento, detalhe) → Mente
+	private final SkillListener skillListener;
+	private final Controls controls = new Controls();
+
+	private Skill skill;
+	private String skillId;
 
 	private String username;
 	private SkinData skin;
 	private UUID uuid;
 	private int deadTicks;
 
-	public CompanionManager(MinecraftServer server, BiConsumer<String, String> events) {
+	public CompanionManager(MinecraftServer server, BiConsumer<String, String> events, SkillListener skillListener) {
 		this.server = server;
 		this.events = events;
+		this.skillListener = skillListener;
+	}
+
+	public Controls controls() {
+		return controls;
 	}
 
 	/** Chamado quando a Mente diz qual personagem é (welcome). */
@@ -99,25 +126,109 @@ public final class CompanionManager {
 		if (player == null) {
 			return false;
 		}
+		endSkill("saí do mundo", true);
 		player.connection.disconnect(Component.literal(reason));
 		events.accept("despawned", reason);
 		return true;
 	}
 
+	// ---- habilidades ----
+
+	/** Começa uma habilidade; a que estava rodando é interrompida (e reportada como tal). */
+	public void startSkill(String id, Skill next) {
+		endSkill("interrompida por outra ação", true);
+		skill = next;
+		skillId = id;
+	}
+
+	/** Para o que estiver fazendo. Devolve false se não estava fazendo nada. */
+	public boolean stopSkill() {
+		if (skill == null) {
+			return false;
+		}
+		endSkill("mandaram parar", true);
+		return true;
+	}
+
+	public Skill currentSkill() {
+		return skill;
+	}
+
+	public String currentSkillId() {
+		return skillId;
+	}
+
+	/** Encerra a habilidade atual. reason == null significa que deu certo. */
+	private void endSkill(String reason) {
+		endSkill(reason, false);
+	}
+
+	private void endSkill(String reason, boolean cancelled) {
+		if (skill == null) {
+			return;
+		}
+		Skill ended = skill;
+		String id = skillId;
+		skill = null;
+		skillId = null;
+		controls.release();
+		skillListener.onSkillEnded(id, ended.name(), reason, cancelled);
+	}
+
 	/**
-	 * Chamado no fim de cada tick do servidor. O corpo de um player morto sai do
-	 * mundo depois da animação de morte e para de receber tick(), mas continua na
-	 * lista de players até o respawn. Por isso a contagem fica aqui, e não nele.
+	 * Chamado no fim de cada tick do servidor. As teclas definidas aqui são
+	 * aplicadas no corpo no começo do próximo tick (CompanionPlayer.tick).
+	 *
+	 * O corpo de um player morto sai do mundo depois da animação de morte e
+	 * para de receber tick(), mas continua na lista de players até o respawn.
+	 * Por isso a contagem do respawn também fica aqui, e não nele.
 	 */
 	public void tick() {
+		controls.release();
 		CompanionPlayer player = player();
-		if (player == null || !player.isDeadOrDying()) {
+		if (player == null) {
 			deadTicks = 0;
 			return;
 		}
-		if (++deadTicks >= RESPAWN_DELAY_TICKS) {
-			deadTicks = 0;
-			player.pressRespawn();
+		if (player.isDeadOrDying()) {
+			endSkill("morri", true);
+			if (++deadTicks >= RESPAWN_DELAY_TICKS) {
+				deadTicks = 0;
+				player.pressRespawn();
+			}
+			return;
+		}
+		deadTicks = 0;
+
+		if (skill != null) {
+			Skill.Status status = skill.tick(new SkillContext(server, player, controls));
+			if (status == Skill.Status.SUCCEEDED) {
+				endSkill(null);
+			} else if (status == Skill.Status.FAILED) {
+				String reason = skill.failureReason();
+				endSkill(reason == null ? "não deu certo" : reason);
+			}
+			return;
+		}
+		lookAtNearestPlayer(player);
+	}
+
+	/** Parada, ela olha para o player mais perto, como alguém de verdade faria. */
+	private void lookAtNearestPlayer(CompanionPlayer me) {
+		ServerPlayer nearest = null;
+		double best = LOOK_AROUND_RANGE * LOOK_AROUND_RANGE;
+		for (ServerPlayer p : me.level().players()) {
+			if (p == me || p.isSpectator()) {
+				continue;
+			}
+			double d = p.distanceToSqr(me);
+			if (d < best) {
+				best = d;
+				nearest = p;
+			}
+		}
+		if (nearest != null) {
+			controls.lookAt(nearest.getEyePosition());
 		}
 	}
 

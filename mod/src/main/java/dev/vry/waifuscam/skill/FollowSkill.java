@@ -1,0 +1,114 @@
+package dev.vry.waifuscam.skill;
+
+import dev.vry.waifuscam.control.PathFollower;
+import dev.vry.waifuscam.pathing.LevelTerrain;
+import dev.vry.waifuscam.pathing.Path;
+import dev.vry.waifuscam.pathing.PathFinder;
+import dev.vry.waifuscam.pathing.Pos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.UUID;
+
+/**
+ * Seguir um player até mandarem parar. Fica a uma distância confortável, olhando
+ * para ele quando está parada, e corre quando ele se afasta.
+ */
+public final class FollowSkill implements Skill {
+	private static final double TOO_FAR = 96;
+	private static final int REPLAN_INTERVAL = 10;
+	/** Replanejamentos seguidos em que ela quase não saiu do lugar antes de desistir (~20 s). */
+	private static final int MAX_FUTILE_REPLANS = 40;
+
+	private final UUID targetId;
+	private final String targetName;
+	private final double distance;
+
+	private PathFollower follower;
+	private Pos plannedGoal;
+	private int sinceReplan = REPLAN_INTERVAL;
+	private int futileReplans;
+	private Vec3 positionAtLastReplan;
+	private String failure;
+
+	public FollowSkill(ServerPlayer target, double distance) {
+		this.targetId = target.getUUID();
+		this.targetName = target.getGameProfile().name();
+		this.distance = distance;
+	}
+
+	@Override
+	public String name() {
+		return "follow";
+	}
+
+	@Override
+	public String describe() {
+		return "seguindo " + targetName;
+	}
+
+	@Override
+	public Status tick(SkillContext ctx) {
+		ServerPlayer target = ctx.server().getPlayerList().getPlayer(targetId);
+		if (target == null) {
+			return fail(targetName + " saiu do jogo");
+		}
+		if (target.level() != ctx.level()) {
+			return fail(targetName + " foi para outra dimensão");
+		}
+		double dist = ctx.player().distanceTo(target);
+		if (dist > TOO_FAR) {
+			return fail(targetName + " está longe demais");
+		}
+
+		if (dist <= distance) {
+			// Perto: para e fica olhando para ele.
+			follower = null;
+			futileReplans = 0;
+			positionAtLastReplan = null;
+			ctx.controls().lookAt(target.getEyePosition());
+			return Status.RUNNING;
+		}
+
+		LevelTerrain terrain = new LevelTerrain(ctx.level());
+		Pos goal = SkillContext.feetOf(target, terrain);
+		sinceReplan++;
+		boolean targetMoved = plannedGoal == null || plannedGoal.distanceTo(goal) > 2;
+		// Sem caminho (ou ele andou), planeja de novo, mas no máximo a cada REPLAN_INTERVAL ticks.
+		if (sinceReplan >= REPLAN_INTERVAL && (follower == null || targetMoved)) {
+			sinceReplan = 0;
+			// Progresso = ela se mexeu desde o último plano (ele pode estar andando também).
+			Vec3 here = ctx.player().position();
+			if (positionAtLastReplan == null || here.distanceTo(positionAtLastReplan) > 1.0) {
+				futileReplans = 0;
+			} else if (++futileReplans > MAX_FUTILE_REPLANS) {
+				return fail("não consigo chegar até " + targetName);
+			}
+			positionAtLastReplan = here;
+			Path path = new PathFinder(terrain).find(ctx.feet(terrain), goal, distance);
+			plannedGoal = goal;
+			follower = path.isEmpty() ? null : new PathFollower(path);
+		}
+
+		if (follower == null) {
+			ctx.controls().lookAt(target.getEyePosition());
+			return Status.RUNNING;
+		}
+		PathFollower.Status status = follower.tick(ctx.player(), ctx.controls(), dist > 8);
+		if (status != PathFollower.Status.WALKING) {
+			follower = null; // chegou no fim do caminho ou travou: replaneja no próximo tick
+			sinceReplan = REPLAN_INTERVAL;
+		}
+		return Status.RUNNING;
+	}
+
+	private Status fail(String reason) {
+		failure = reason;
+		return Status.FAILED;
+	}
+
+	@Override
+	public String failureReason() {
+		return failure;
+	}
+}

@@ -1,6 +1,7 @@
 package dev.vry.waifuscam.bridge;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -30,11 +31,34 @@ public final class Protocol {
 
 	/** Primeira mensagem do Corpo ao conectar. */
 	public static String hello(String body, String bodyVersion, String minecraft) {
+		return hello(body, bodyVersion, minecraft, null);
+	}
+
+	/** skills = catálogo [{name, description, params}] que a Mente pode pedir (fase 3). */
+	public static String hello(String body, String bodyVersion, String minecraft, JsonArray skills) {
 		JsonObject o = envelope("hello", null);
 		o.addProperty("protocol", VERSION);
 		o.addProperty("body", body);
 		o.addProperty("body_version", bodyVersion);
 		o.addProperty("minecraft", minecraft);
+		if (skills != null) {
+			o.add("skills", skills);
+		}
+		return o.toString();
+	}
+
+	/**
+	 * Uma habilidade terminou. reason == null: deu certo (skill.done); senão,
+	 * skill.failed. cancelled = foi trocada por outra ou mandaram parar (não é erro).
+	 */
+	public static String skillEnded(String bot, String id, String skill, String reason, boolean cancelled) {
+		JsonObject o = envelope(reason == null ? "skill.done" : "skill.failed", bot);
+		o.addProperty("id", id);
+		o.addProperty("skill", skill);
+		if (reason != null) {
+			o.addProperty("reason", reason);
+			o.addProperty("cancelled", cancelled);
+		}
 		return o.toString();
 	}
 

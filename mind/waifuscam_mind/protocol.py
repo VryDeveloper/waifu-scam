@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 PROTOCOL_VERSION = 1
 
@@ -30,17 +30,51 @@ class Envelope(BaseModel):
 # ---- Corpo → Mente ---------------------------------------------------------
 
 
+class SkillSpec(BaseModel):
+    """Uma habilidade que o corpo sabe executar. `params` é um JSON Schema dos argumentos."""
+
+    model_config = ConfigDict(extra="allow")
+
+    name: str
+    description: str = ""
+    params: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def arg_names(self) -> list[str]:
+        return list((self.params.get("properties") or {}).keys())
+
+
 class Hello(Envelope):
     type: Literal["hello"] = "hello"
     protocol: int
     body: str
     body_version: str
     minecraft: str | None = None
+    skills: list[SkillSpec] = Field(default_factory=list)
 
 
 class Event(Envelope):
     type: Literal["event"] = "event"
     event: str
+
+
+class SkillDone(Envelope):
+    """Uma habilidade terminou bem."""
+
+    type: Literal["skill.done"] = "skill.done"
+    id: str
+    skill: str
+
+
+class SkillFailed(Envelope):
+    """Uma habilidade não terminou. `reason` em português; `cancelled` = foi trocada
+    por outra ou mandaram parar (não é um erro dela)."""
+
+    type: Literal["skill.failed"] = "skill.failed"
+    id: str
+    skill: str
+    reason: str = ""
+    cancelled: bool = False
 
 
 class State(Envelope):
@@ -78,6 +112,19 @@ class ChatSay(Envelope):
     text: str
 
 
+class SkillStart(Envelope):
+    """Começa uma habilidade do catálogo. A que estava rodando é interrompida."""
+
+    type: Literal["skill.start"] = "skill.start"
+    id: str
+    skill: str
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+class SkillCancel(Envelope):
+    type: Literal["skill.cancel"] = "skill.cancel"
+
+
 class ErrorMsg(Envelope):
     type: Literal["error"] = "error"
     message: str
@@ -103,6 +150,10 @@ _BY_TYPE: dict[str, type[Envelope]] = {
     "state": State,
     "welcome": Welcome,
     "chat.say": ChatSay,
+    "skill.start": SkillStart,
+    "skill.cancel": SkillCancel,
+    "skill.done": SkillDone,
+    "skill.failed": SkillFailed,
     "error": ErrorMsg,
     "ping": Ping,
     "pong": Pong,

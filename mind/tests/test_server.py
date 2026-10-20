@@ -120,3 +120,33 @@ async def test_skin_from_resolver_goes_into_welcome(characters_dir):
         assert welcome.skin and welcome.skin.signature == "SIG"
     finally:
         await srv.stop()
+
+
+# ---- fase 3 ----------------------------------------------------------------
+
+
+async def test_hello_catalog_is_stored(server):
+    async with SimulatedBody(url(server)) as body:
+        await body.handshake()
+        [session] = server.sessions
+        assert [s.name for s in session.skills] == ["follow", "goto", "stop"]
+
+
+async def test_echo_brain_understands_fixed_requests_and_reports_failures(server):
+    async with SimulatedBody(url(server)) as body:
+        await body.handshake()
+        await body.spawn()
+        await body.next_say()  # saudação
+        await body.chat("Vry", "lumi me segue")
+        start = await body.next_of(p.SkillStart)
+        assert start.skill == "follow" and start.args == {"player": "Vry"} and start.id.startswith("mind-")
+        assert await body.next_say() == "bora, tô indo"
+        await body.skill_ended(start.id, "follow", reason="Vry foi para outra dimensão")
+        assert await body.next_say() == "não deu: Vry foi para outra dimensão"
+        await asyncio.sleep(2.1)  # intervalo mínimo entre respostas do eco
+        await body.chat("Vry", "lumi, para!")
+        assert (await body.next_of(p.SkillStart)).skill == "stop"
+        assert await body.next_say() == "tá, parei"
+        await asyncio.sleep(2.1)
+        await body.chat("Vry", "lumi vamos para a mina")  # "para" como preposição
+        assert await body.next_say() == "(eco) lumi vamos para a mina"

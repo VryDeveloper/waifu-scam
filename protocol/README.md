@@ -41,6 +41,36 @@ Mensagem inválida → a Mente responde `{"type":"error","message":"..."}` e man
 
 `state` ganha `players` (quem está online), `time_of_day` (0 a 23999 ticks) e `weather` (`clear`, `rain`, `thunder`), usados pela Mente para dar contexto à conversa.
 
+## Fase 3
+
+O corpo manda no `hello` o catálogo `skills` (`name`, `description`, `params` em JSON Schema). A Mente só pede o que está nele, então uma habilidade nova no mod aparece para a IA sem mexer na Mente.
+
+| Tipo | Direção | Para quê |
+|---|---|---|
+| `skill.start` | Mente → Corpo | `id`, `skill`, `args`. Interrompe a habilidade atual. `stop` para tudo |
+| `skill.cancel` | Mente → Corpo | Para a habilidade atual |
+| `skill.done` | Corpo → Mente | `id`, `skill`: terminou bem |
+| `skill.failed` | Corpo → Mente | `id`, `skill`, `reason` em português; `cancelled: true` quando não foi falha (trocada, mandaram parar, ela morreu ou saiu) |
+
+`state` ganha `skill` (`id`, `name`, `doing`) com o que ela está fazendo agora.
+
+```text
+Corpo                                    Mente
+  │ hello {"skills":[{"name":"follow",…}]} │
+  │ ─────────────────────────────────────▶ │
+  │  … "Vry: lumi me segue" (event chat) … │
+  │ ─────────────────────────────────────▶ │
+  │ {"type":"skill.start","id":"mind-1",   │
+  │  "skill":"follow","args":{"player":"Vry"}}
+  │ ◀───────────────────────────────────── │
+  │ {"type":"skill.failed","id":"mind-1",  │
+  │  "reason":"Vry foi para outra dimensão",│
+  │  "cancelled":false}                    │
+  │ ─────────────────────────────────────▶ │
+```
+
+Habilidades da fase 3: `follow` (`player`), `goto` (`player` ou `x`, `y`, `z`) e `stop`.
+
 ## Próximas fases
 
-`skill.start` / `skill.progress` / `skill.done` / `skill.failed` / `skill.cancel`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.
+`skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

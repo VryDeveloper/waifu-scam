@@ -9,6 +9,8 @@ import dev.vry.waifuscam.bridge.MindClient;
 import dev.vry.waifuscam.bridge.Protocol;
 import dev.vry.waifuscam.command.WaifuCommand;
 import dev.vry.waifuscam.config.ModConfig;
+import dev.vry.waifuscam.skill.Skill;
+import dev.vry.waifuscam.skill.SkillRegistry;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -36,6 +38,7 @@ import java.util.function.LongConsumer;
  * Fase 1: coloca a personagem no mundo ao abrir a LAN, repassa o chat e o estado
  * dela para a Mente e fala no chat quando a Mente manda.
  * Fase 2: o estado também leva quem está online, o horário e o clima.
+ * Fase 3: habilidades de movimento (seguir, ir até), pedidas pela Mente ou por comando.
  */
 public final class WaifuScamMod implements ModInitializer {
 	public static final String MOD_ID = "waifuscam";
@@ -85,7 +88,8 @@ public final class WaifuScamMod implements ModInitializer {
 	private void onServerStarted(MinecraftServer server) {
 		this.server = server;
 		this.autoJoined = false;
-		this.companions = new CompanionManager(server, this::sendEvent);
+		this.companions = new CompanionManager(server, this::sendEvent,
+				(id, skill, reason, cancelled) -> sendToMind(Protocol.skillEnded(botId, id, skill, reason, cancelled)));
 		mind = new MindClient(URI.create(config.mindUrl), Duration.ofSeconds(config.reconnectSeconds),
 				new MindHandler(), LOGGER::info);
 		mind.start();
@@ -187,6 +191,14 @@ public final class WaifuScamMod implements ModInitializer {
 			s.addProperty("y", p.getY());
 			s.addProperty("z", p.getZ());
 			s.addProperty("dimension", p.level().dimension().identifier().toString());
+			Skill current = companions.currentSkill();
+			if (current != null) {
+				JsonObject skill = new JsonObject();
+				skill.addProperty("id", companions.currentSkillId());
+				skill.addProperty("name", current.name());
+				skill.addProperty("doing", current.describe());
+				s.add("skill", skill);
+			}
 		}
 		sendToMind(Protocol.state(botId, s));
 	}
@@ -203,6 +215,36 @@ public final class WaifuScamMod implements ModInitializer {
 			}
 		}
 		server.sendSystemMessage(line); // também no log do servidor
+	}
+
+	/**
+	 * Começa uma habilidade pedida pela Mente ou por comando. Roda na thread do
+	 * servidor. Devolve o motivo do erro, ou null se começou.
+	 */
+	public String startSkill(String id, String name, JsonObject args) {
+		CompanionManager c = companions;
+		if (c == null || server == null) {
+			return "servidor ainda iniciando";
+		}
+		String error = null;
+		CompanionPlayer me = c.player();
+		if (me == null || me.isDeadOrDying()) {
+			error = "não estou no mundo agora";
+		} else if ("stop".equals(name)) {
+			c.stopSkill();
+			sendToMind(Protocol.skillEnded(botId, id, name, null, false));
+			return null;
+		} else {
+			try {
+				c.startSkill(id, SkillRegistry.create(name, args, server, me));
+			} catch (SkillRegistry.SkillException e) {
+				error = e.getMessage();
+			}
+		}
+		if (error != null) {
+			sendToMind(Protocol.skillEnded(botId, id, name, error, false));
+		}
+		return error;
 	}
 
 	// ---- usado pelos comandos e pelos mixins ----
@@ -246,7 +288,7 @@ public final class WaifuScamMod implements ModInitializer {
 					.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("dev");
 			String mcVersion = FabricLoader.getInstance().getModContainer("minecraft")
 					.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
-			mind.send(Protocol.hello("fabric", modVersion, mcVersion));
+			mind.send(Protocol.hello("fabric", modVersion, mcVersion, SkillRegistry.catalog()));
 		}
 
 		@Override
@@ -288,6 +330,23 @@ public final class WaifuScamMod implements ModInitializer {
 						if (s != null) {
 							s.execute(() -> p.onPong().accept(ms));
 						}
+					}
+				}
+				case "skill.start" -> {
+					String id = Protocol.string(msg, "id");
+					String name = Protocol.string(msg, "skill");
+					JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : null;
+					if (s != null) {
+						s.execute(() -> startSkill(id, name, args));
+					}
+				}
+				case "skill.cancel" -> {
+					if (s != null) {
+						s.execute(() -> {
+							if (companions != null) {
+								companions.stopSkill();
+							}
+						});
 					}
 				}
 				case "ping" -> mind.send(Protocol.pong(botId, Protocol.string(msg, "id")));
