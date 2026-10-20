@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "waifuscam-mind"
-version = "0.3.0"
+version = "0.4.0"
 description = "A Mente do Waifu Scam: personalidade, necessidades e decisões da player de IA."
 readme = "README.md"
 license = { text = "MIT" }

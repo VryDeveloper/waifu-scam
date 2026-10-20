@@ -29,13 +29,23 @@ class Action:
     args: dict[str, Any] = field(default_factory=dict)
 
 
+XYZ = ("x", "y", "z")
+PRONOUNS = {"me", "mim", "eu", "você", "voce", "vc", "player", "comigo"}
+
+
+def _kind(spec: p.SkillSpec, name: str) -> str:
+    prop = (spec.params.get("properties") or {}).get(name) or {}
+    return str(prop.get("type", "string"))
+
+
 def usage(spec: p.SkillSpec) -> str:
-    """Como a IA escreve essa ação, a partir dos parâmetros do catálogo."""
+    """Como a IA escreve essa ação, a partir dos parâmetros do catálogo (na ordem deles)."""
     names = spec.arg_names
+    rest = [n for n in names if n not in XYZ]
     forms: list[str] = []
-    if "player" in names:
-        forms.append(f"[ação: {spec.name} <player>]")
-    if {"x", "y", "z"} <= set(names):
+    if rest:
+        forms.append(" ".join([f"[ação: {spec.name}", *(f"<{n}>" for n in rest)]) + "]")
+    if all(c in names for c in XYZ):
         forms.append(f"[ação: {spec.name} <x> <y> <z>]")
     if not forms:
         forms.append(f"[ação: {spec.name}]")
@@ -53,7 +63,8 @@ def describe_actions(skills: list[p.SkillSpec]) -> str:
     lines += [
         "Use no máximo uma ação por resposta e só quando você decidir fazer aquilo agora",
         "(alguém pediu e você topou, ou você quer). Se recusar ou adiar, não coloque ação.",
-        "Sem nome de player, a ação vale para quem falou com você.",
+        "Sem nome de player, a ação vale para quem falou com você. Itens vão pelo id em inglês do Minecraft",
+        "(oak_log, cobblestone, stone_pickaxe, torch, bread), e a quantidade é um número.",
         "Nunca escreva a linha da ação no meio da frase, e não explique a ação: só fale normalmente e coloque a linha.",
     ]
     return "\n".join(lines)
@@ -69,32 +80,63 @@ def split_action(reply: str) -> tuple[str, str | None, str]:
     return text, last.group(1).lower(), last.group(2).strip()
 
 
+def _player(token: str, players: list[str]) -> str:
+    """Corrige a caixa do nome. Se a pessoa não estiver online, o corpo recusa e ela fica sabendo."""
+    for name in players:
+        if name.lower() == token.lower():
+            return name
+    return token
+
+
 def parse_args(spec: p.SkillSpec, raw: str, speaker: str | None, players: list[str]) -> dict[str, Any] | None:
-    """Transforma "Vry" ou "10 64 -3" nos argumentos do catálogo. None se não fizer sentido."""
-    names = set(spec.arg_names)
+    """Transforma "Vry", "10 64 -3" ou "Vry torch 4" nos argumentos do catálogo. None se não fizer sentido."""
+    names = spec.arg_names
     tokens = [t.strip(" ,<>@\"'") for t in raw.replace(",", " ").split()]
     tokens = [t for t in tokens if t]
 
     if any(t[0] in "~^" for t in tokens):
         return None  # coordenada relativa não dá para resolver daqui
-    if {"x", "y", "z"} <= names and len(tokens) == 3 and all(NUMBER.match(t) for t in tokens):
+    if all(c in names for c in XYZ) and len(tokens) == 3 and all(NUMBER.match(t) for t in tokens):
         x, y, z = (float(t) for t in tokens)
         return {"x": x, "y": y, "z": z}
 
-    if "player" in names:
-        wanted = tokens[0] if tokens else None
-        if wanted and (NUMBER.match(wanted) or not PLAYER_NAME.match(wanted)):
-            return None  # coordenada pela metade ou nome que não existe no Minecraft
-        if wanted and wanted.lower() not in {"me", "mim", "eu", "você", "voce", "vc", "player"}:
-            # Corrige a caixa do nome. Se a pessoa não estiver online, o corpo
-            # recusa e ela fica sabendo o motivo.
-            for name in players:
-                if name.lower() == wanted.lower():
-                    return {"player": name}
-            return {"player": wanted}
-        return {"player": speaker} if speaker else None
+    rest = [n for n in names if n not in XYZ]
+    required = set(spec.params.get("required") or [])
+    online = {n.lower() for n in players}
+    args: dict[str, Any] = {}
 
-    return {}
+    # 1) quem: nome de quem está online, "me"/"mim", ou o único texto da ação
+    texts = [n for n in rest if _kind(spec, n) == "string" and n != "player"]
+    if "player" in rest:
+        first = tokens[0] if tokens else None
+        if first is not None and first.lower() in PRONOUNS:
+            tokens.pop(0)
+        elif first is not None and (first.lower() in online or not texts):
+            if NUMBER.match(first) or not PLAYER_NAME.match(first):
+                return None  # coordenada pela metade ou nome que não existe no Minecraft
+            args["player"] = _player(tokens.pop(0), players)
+        if "player" not in args and speaker:
+            args["player"] = speaker
+
+    # 2) números vão para os parâmetros numéricos, na ordem
+    numbers = [n for n in rest if _kind(spec, n) in ("integer", "number")]
+    words: list[str] = []
+    for t in tokens:
+        if NUMBER.match(t) and numbers:
+            name = numbers.pop(0)
+            args[name] = int(float(t)) if _kind(spec, name) == "integer" else float(t)
+        else:
+            words.append(t)
+
+    # 3) o resto é o texto (ex.: o item); "picareta de pedra" vira picareta_de_pedra
+    if words:
+        if not texts:
+            return None
+        args[texts[0]] = "_".join(words)
+
+    if any(r not in args for r in required):
+        return None
+    return args
 
 
 def resolve(

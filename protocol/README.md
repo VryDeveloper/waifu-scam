@@ -71,6 +71,12 @@ Corpo                                    Mente
 
 Habilidades da fase 3: `follow` (`player`), `goto` (`player` ou `x`, `y`, `z`) e `stop`.
 
+## Fase 4
+
+Habilidades novas no catálogo: `obtain` (`item`, `count`: ficar com pelo menos count), `craft` (mais count), `collect` (minerar mais count), `eat`, `give` (`player`, `item`, `count`), `deposit` e `withdraw` (`item`, `count`). Itens vão pelo id do Minecraft (`stone_pickaxe`, `minecraft:torch`) ou por tag (`#logs`).
+
+`state` ganha `inventory` (até 20 itens, `{"oak_log": 12, ...}`) e `holding` (o item na mão).
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

@@ -34,3 +34,10 @@ O Mineflayer, usado pela maioria dos bots de IA de Minecraft, só suporta oficia
 - **`pathing/`** — A* sobre a grade de blocos, sem dependência do Minecraft (testado com um terreno falso). Movimentos: andar e diagonal (sem cortar quina), subir 1 bloco pulando, descer até 3, nadar. Evita lava, fogo, cacto, magma, teia e afins. Se o destino não é alcançável, devolve o caminho até o ponto mais perto.
 - **`control/`** — as "teclas" dela (`Controls`: frente, lado, pulo, corrida, agachar, olhar), aplicadas no começo de cada tick do player, e o `PathFollower`, que anda de nó em nó, pula degraus e detecta quando travou.
 - **`skill/`** — `follow` replaneja quando o alvo anda e corre quando ele se afasta; `goto` replaneja quando trava ou o caminho era parcial e desiste com um motivo em português, que volta para a Mente em `skill.failed`.
+
+## Como ela usa as mãos (fase 4)
+
+- **`craft/Planner`** — dado o inventário, o que tem perto (bancada, fornalha) e um objetivo, monta a sequência: minerar, craftar, fundir. Trabalha num inventário simulado e escolhe a variante mais barata de cada ingrediente (a tábua do tronco que ela já tem). Ciclos de receita (bloco de ferro ↔ barras) não travam. É puro Java e tem testes próprios.
+- **`craft/GameKnowledge`** — tira as receitas do servidor (inclusive de datapacks) e as tags de ferramenta de cada bloco. As fontes naturais são uma lista curada para ela não desmontar construções.
+- **`ObtainSkill`** — executa só o primeiro passo do plano e replaneja com o inventário novo. Se ela minerou bétula em vez de carvalho, o próximo plano usa bétula.
+- **`hands/`** — `Digger` quebra blocos pelo mesmo caminho de um player (o bloco racha aos poucos e solta o drop normal), `Placer` coloca blocos clicando numa face, `Crafter` monta a grade com os itens dela e confere com a receita do jogo antes de trocar os ingredientes pelo resultado.

@@ -38,6 +38,25 @@ SIM_SKILLS = [
             },
         },
     ),
+    p.SkillSpec(
+        name="obtain",
+        description="Ficar com pelo menos `count` do item no inventário, fazendo o que precisar.",
+        params={
+            "type": "object",
+            "properties": {"item": {"type": "string"}, "count": {"type": "integer"}},
+            "required": ["item"],
+        },
+    ),
+    p.SkillSpec(
+        name="give",
+        description="Entregar itens para um player.",
+        params={
+            "type": "object",
+            "properties": {"player": {"type": "string"}, "item": {"type": "string"}, "count": {"type": "integer"}},
+            "required": ["player", "item"],
+        },
+    ),
+    p.SkillSpec(name="eat", description="Comer.", params={"type": "object", "properties": {}}),
     p.SkillSpec(name="stop", description="Parar o que está fazendo.", params={"type": "object", "properties": {}}),
 ]
 

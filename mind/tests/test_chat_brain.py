@@ -244,3 +244,10 @@ def test_budget_resets_next_day_and_persists(tmp_path):
     assert Budget(2, tmp_path / "b.json", today=lambda: day[0]).remaining == 0  # sobreviveu ao reinício
     day[0] = date(2026, 10, 20)
     assert b.try_spend() and b.remaining == 1
+
+
+def test_situation_lists_inventory():
+    state = p.State(online=True, inventory={"oak_log": 12, "stone_pickaxe": 1}, holding="stone_pickaxe")
+    text = describe_situation(state, "Lumi")
+    assert "Seu inventário: 12 oak_log, 1 stone_pickaxe" in text and "Na mão: stone_pickaxe" in text
+    assert "inventário está vazio" in describe_situation(p.State(online=True, inventory={}), "Lumi")

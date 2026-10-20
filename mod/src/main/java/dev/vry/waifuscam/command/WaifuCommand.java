@@ -2,7 +2,13 @@ package dev.vry.waifuscam.command;
 
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.vry.waifuscam.hands.Stacks;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.arguments.item.ItemArgument;
 import dev.vry.waifuscam.WaifuScamMod;
 import dev.vry.waifuscam.bot.CompanionManager;
 import dev.vry.waifuscam.bot.CompanionPlayer;
@@ -26,6 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * /waifu come     — ela vem até você
  * /waifu goto x y z — ela vai até o ponto
  * /waifu stop     — ela para o que está fazendo
+ * /waifu obtain|craft|collect <item> [n] — ela consegue, crafta ou coleta itens
+ * /waifu give <item> [n] — ela te entrega itens
+ * /waifu eat | deposit | inv — comer, guardar no baú, ver o inventário
  */
 public final class WaifuCommand {
 	private static final AtomicInteger COMMAND_IDS = new AtomicInteger();
@@ -48,7 +57,7 @@ public final class WaifuCommand {
 		return args;
 	}
 
-	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, WaifuScamMod mod) {
+	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext context, WaifuScamMod mod) {
 		dispatcher.register(Commands.literal("waifu")
 				.then(Commands.literal("status").executes(ctx -> {
 					CommandSourceStack src = ctx.getSource();
@@ -133,6 +142,58 @@ public final class WaifuCommand {
 					}
 					ctx.getSource().sendSuccess(() -> Component.literal("Ela parou."), false);
 					return 1;
+				}))
+				// ---- fase 4: mãos ----
+				.then(itemSkill("obtain", "Ela vai conseguir", mod, context))
+				.then(itemSkill("craft", "Ela vai craftar", mod, context))
+				.then(itemSkill("collect", "Ela vai coletar", mod, context))
+				.then(Commands.literal("give")
+						.then(Commands.argument("item", ItemArgument.item(context))
+								.executes(ctx -> give(ctx, mod, 1))
+								.then(Commands.argument("count", IntegerArgumentType.integer(1, 576))
+										.executes(ctx -> give(ctx, mod, IntegerArgumentType.getInteger(ctx, "count"))))))
+				.then(Commands.literal("eat").executes(ctx ->
+						run(ctx.getSource(), mod, "eat", new JsonObject(), "Ela vai comer.")))
+				.then(Commands.literal("deposit").executes(ctx ->
+						run(ctx.getSource(), mod, "deposit", new JsonObject(), "Ela vai guardar as coisas no baú.")))
+				.then(Commands.literal("inv").executes(ctx -> {
+					CompanionManager companions = mod.companions();
+					CompanionPlayer p = companions == null ? null : companions.player();
+					if (p == null) {
+						ctx.getSource().sendFailure(Component.literal("Ela não está no mundo."));
+						return 0;
+					}
+					StringBuilder line = new StringBuilder("Inventário: ");
+					Stacks.summary(p.getInventory(), 40).forEach((item, n) -> line.append(n).append(' ').append(item).append(", "));
+					String text = line.length() > 12 ? line.substring(0, line.length() - 2) : "Inventário vazio";
+					ctx.getSource().sendSuccess(() -> Component.literal(text), false);
+					return 1;
 				})));
+	}
+
+	private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> itemSkill(
+			String skill, String ok, WaifuScamMod mod, CommandBuildContext context) {
+		return Commands.literal(skill)
+				.then(Commands.argument("item", ItemArgument.item(context))
+						.executes(ctx -> itemSkillRun(ctx, skill, ok, mod, 1))
+						.then(Commands.argument("count", IntegerArgumentType.integer(1, 576))
+								.executes(ctx -> itemSkillRun(ctx, skill, ok, mod, IntegerArgumentType.getInteger(ctx, "count")))));
+	}
+
+	private static int itemSkillRun(CommandContext<CommandSourceStack> ctx, String skill, String ok, WaifuScamMod mod, int count) {
+		String item = Stacks.id(ItemArgument.getItem(ctx, "item").item().value());
+		JsonObject args = new JsonObject();
+		args.addProperty("item", item);
+		args.addProperty("count", count);
+		return run(ctx.getSource(), mod, skill, args, ok + " " + count + " " + item.replace("minecraft:", "") + ".");
+	}
+
+	private static int give(CommandContext<CommandSourceStack> ctx, WaifuScamMod mod, int count) throws CommandSyntaxException {
+		ServerPlayer me = ctx.getSource().getPlayerOrException();
+		String item = Stacks.id(ItemArgument.getItem(ctx, "item").item().value());
+		JsonObject args = playerArg(me.getGameProfile().name());
+		args.addProperty("item", item);
+		args.addProperty("count", count);
+		return run(ctx.getSource(), mod, "give", args, "Ela vai te dar " + count + " " + item.replace("minecraft:", "") + ".");
 	}
 }

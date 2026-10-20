@@ -9,6 +9,7 @@ import dev.vry.waifuscam.bridge.MindClient;
 import dev.vry.waifuscam.bridge.Protocol;
 import dev.vry.waifuscam.command.WaifuCommand;
 import dev.vry.waifuscam.config.ModConfig;
+import dev.vry.waifuscam.hands.Stacks;
 import dev.vry.waifuscam.skill.Skill;
 import dev.vry.waifuscam.skill.SkillRegistry;
 import net.fabricmc.api.ModInitializer;
@@ -79,7 +80,7 @@ public final class WaifuScamMod implements ModInitializer {
 			}
 		});
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				WaifuCommand.register(dispatcher, this));
+				WaifuCommand.register(dispatcher, registryAccess, this));
 		LOGGER.info("Waifu Scam carregado. A Mente é esperada em {}", config.mindUrl);
 	}
 
@@ -191,6 +192,12 @@ public final class WaifuScamMod implements ModInitializer {
 			s.addProperty("y", p.getY());
 			s.addProperty("z", p.getZ());
 			s.addProperty("dimension", p.level().dimension().identifier().toString());
+
+			// Inventário (fase 4): os 20 itens que ela mais tem e o que está na mão.
+			JsonObject inventory = new JsonObject();
+			Stacks.summary(p.getInventory(), 20).forEach(inventory::addProperty);
+			s.add("inventory", inventory);
+			s.addProperty("holding", p.getMainHandItem().isEmpty() ? null : Stacks.id(p.getMainHandItem()).replace("minecraft:", ""));
 			Skill current = companions.currentSkill();
 			if (current != null) {
 				JsonObject skill = new JsonObject();

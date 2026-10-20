@@ -10,7 +10,7 @@
 
 Ela joga como uma player de verdade: tem vida e fome, vontades próprias, conversa pelo chat com a personalidade que você escrever e decide se aceita, adia ou recusa os seus pedidos. A IA roda em planos gratuitos (Groq, Gemini, OpenRouter) ou localmente com Ollama.
 
-> **Status: fase 3 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa no chat com a personalidade dela usando IA gratuita e já anda: te segue, vem até você e vai até coordenadas, desviando de buracos, lava e paredes. Ela ainda não quebra blocos nem pega itens — isso é a fase 4. Veja o [roadmap](#roadmap).
+> **Status: fase 4 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa no chat com a personalidade dela usando IA gratuita, anda (segue, vem até você, desvia de buraco e lava) e já usa as mãos: minera, coleta, crafta, funde, come, usa baús e te entrega itens. "Faz uma picareta de pedra" ela resolve do zero. Veja o [roadmap](#roadmap).
 
 ## Como funciona
 
@@ -93,7 +93,7 @@ cd mod
 ./gradlew build
 ```
 
-Copie `mod/build/libs/waifuscam-0.3.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
+Copie `mod/build/libs/waifuscam-0.4.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
 
 | Campo | Padrão | O que faz |
 |---|---|---|
@@ -113,8 +113,17 @@ Copie `mod/build/libs/waifuscam-0.3.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu come` | Ela vem até você |
 | `/waifu goto <x y z>` | Ela vai até o ponto (aceita `~`) |
 | `/waifu stop` | Ela para o que está fazendo |
+| `/waifu obtain <item> [n]` | Ela fica com pelo menos n do item, fazendo tudo o que precisar (ex.: `/waifu obtain stone_pickaxe`) |
+| `/waifu craft <item> [n]` | Ela crafta mais n do item |
+| `/waifu collect <item> [n]` | Ela minera mais n de um recurso (`oak_log`, `cobblestone`, `coal`...) |
+| `/waifu give <item> [n]` | Ela consegue o item (se não tiver) e te entrega |
+| `/waifu eat` | Ela come a melhor comida que tiver |
+| `/waifu deposit` | Ela guarda no baú mais perto tudo menos ferramentas, armas, armadura e comida |
+| `/waifu inv` | Mostra o inventário dela |
 
-Os comandos de movimento obedecem na hora, para testar. Pelo chat é diferente: você pede ("lumi, me segue", "vem aqui", "para") e ela decide se topa, do jeito da persona. Sem chave de IA, ela entende só esses três pedidos fixos.
+Os comandos obedecem na hora, para testar. Pelo chat é diferente: você pede ("lumi, me segue", "faz uma picareta de pedra", "me dá 10 tochas", "guarda as coisas no baú") e ela decide se topa, do jeito da persona. Sem chave de IA, ela entende só "me segue", "vem aqui" e "para".
+
+Ela não desmonta construção: tronco ela só tira de árvore (com folha natural por perto), pedregulho só de pedra, e nunca quebra tábua, vidro ou bloco colocado por player para conseguir material. Não mexe em fornalha de outra pessoa.
 
 Ela é um player de verdade: aparece no Tab, sente fome, pode morrer (solta os itens e renasce sozinha) e pode ser expulsa com `/kick`. No chat, ela responde quando você fala o nome dela, quando só tem você online com ela, ou quando você continua uma conversa que ela acabou de responder. Ela também cumprimenta ao entrar e comenta quando morre.
 
@@ -153,7 +162,9 @@ waifu-scam/
 │       ├── bridge/             # cliente WebSocket + protocolo (sem dependência do Minecraft)
 │       ├── pathing/            # A* em grade de blocos (testado sem o jogo)
 │       ├── control/            # "teclas" dela (andar, pular, olhar) e seguidor de caminho
-│       ├── skill/              # habilidades (seguir, ir até) e o catálogo enviado à Mente
+│       ├── craft/              # planejador de receitas (testado sem o jogo) + receitas do servidor
+│       ├── hands/              # minerar, colocar bloco, craftar, comida, achar blocos
+│       ├── skill/              # habilidades (seguir, minerar, craftar, fundir, baú...) e o catálogo
 │       ├── command/            # /waifu
 │       └── config/             # config/waifuscam.json
 ├── mind/           # Mente: Python
@@ -178,8 +189,8 @@ waifu-scam/
 | 0 · Fundação ✅ | Ambiente Fabric 26.3, esqueleto da Mente, WebSocket | O mod carrega e a Mente responde ao ping |
 | 1 · O corpo existe ✅ | Fake player entra ao abrir a LAN, skin, eco de chat | Ela aparece no Tab, sente fome e morre de verdade |
 | 2 · Conversa ✅ | Chat com a persona, fallback de provedores, orçamento | Você conversa com ela pelo chat |
-| **3 · Movimento** 🧪 | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
-| 4 · Mãos | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
+| 3 · Movimento 🧪 | Andar, olhar, pular, seguir, pathfinding A* | Ela te segue por terreno irregular |
+| 4 · Mãos 🧪 | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
 | 5 · Vontade própria | Necessidades, decisão por tool calling, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |
 | 6 · Memória | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |
 | 7 · Polimento | Combate, dormir, abrigo, várias personagens, plugins | Contínuo |

@@ -2,7 +2,8 @@ from waifuscam_mind.brain.actions import Action, describe_actions, resolve, spli
 from waifuscam_mind.sim.body import SIM_SKILLS
 
 SKILLS = SIM_SKILLS
-FOLLOW, GOTO, STOP = SKILLS
+BY_NAME = {s.name: s for s in SKILLS}
+FOLLOW, GOTO, STOP, OBTAIN, GIVE = (BY_NAME[n] for n in ("follow", "goto", "stop", "obtain", "give"))
 
 
 def test_usage_comes_from_params():
@@ -46,3 +47,37 @@ def test_resolve_ignores_unknown_skills_and_missing_speaker():
     assert resolve("[ação: follow]", SKILLS, None, [])[1] is None
     assert resolve("[ação: stop]", SKILLS, None, [])[1] == Action("stop", {})
     assert resolve("[ação: follow Vry]", [], "Vry", [])[1] is None  # corpo antigo, sem catálogo
+
+
+# ---- fase 4: itens e quantidades ------------------------------------------------
+
+
+def test_usage_lists_params_in_order():
+    assert usage(OBTAIN) == "[ação: obtain <item> <count>]"
+    assert usage(GIVE) == "[ação: give <player> <item> <count>]"
+
+
+def test_item_and_count():
+    online = ["Lumi", "Vry"]
+    assert resolve("[ação: obtain stone_pickaxe 1]", SKILLS, "Vry", online)[1] == Action(
+        "obtain", {"item": "stone_pickaxe", "count": 1}
+    )
+    assert resolve("[ação: obtain oak_log]", SKILLS, "Vry", online)[1] == Action("obtain", {"item": "oak_log"})
+    # nome em várias palavras vira um id
+    assert resolve("[ação: obtain stone pickaxe 2]", SKILLS, "Vry", online)[1] == Action(
+        "obtain", {"item": "stone_pickaxe", "count": 2}
+    )
+    assert resolve("[ação: obtain 3]", SKILLS, "Vry", online)[1] is None  # sem item
+
+
+def test_give_defaults_to_speaker_but_accepts_online_name():
+    online = ["Lumi", "Vry", "Ana"]
+    assert resolve("[ação: give torch 4]", SKILLS, "Vry", online)[1] == Action(
+        "give", {"player": "Vry", "item": "torch", "count": 4}
+    )
+    assert resolve("[ação: give ana bread]", SKILLS, "Vry", online)[1] == Action(
+        "give", {"player": "Ana", "item": "bread"}
+    )
+    assert resolve("[ação: give me bread 2]", SKILLS, "Vry", online)[1] == Action(
+        "give", {"player": "Vry", "item": "bread", "count": 2}
+    )

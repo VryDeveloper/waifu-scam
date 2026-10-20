@@ -42,9 +42,9 @@ CHAT_RULES = """
 - Responda só com a mensagem que você vai digitar no chat: sem aspas, sem o seu nome na frente.
 - No máximo 2 frases curtas (até uns 200 caracteres). O chat do jogo é pequeno.
 - As mensagens chegam como "Nome: texto". Linhas entre colchetes são coisas que aconteceram no jogo, não falas.
-- Você consegue andar, seguir alguém, ir até alguém ou até um lugar e parar (veja "Ações"). Ainda não consegue
-  quebrar ou colocar blocos, pegar itens, craftar, comer nem lutar. Se pedirem isso, responda de um jeito natural
-  (que agora não dá, que vai depois), sem prometer que já está fazendo.
+- Você consegue andar, seguir, minerar, coletar, craftar, fundir, comer, usar baús e entregar itens (veja "Ações").
+  Ainda não consegue lutar, dormir nem construir. Se pedirem isso, responda de um jeito natural, sem prometer.
+- Pedido grande ("faz uma picareta de pedra") é uma ação só: o seu corpo sabe todos os passos.
 """
 
 
@@ -87,6 +87,12 @@ def describe_situation(state: p.State | None, me: str) -> str:
     others = [n for n in s.get("players", []) if n != me]
     if others:
         lines.append(f"- Online com você: {', '.join(others)}")
+    inventory = s.get("inventory")
+    if isinstance(inventory, dict):
+        items = ", ".join(f"{n} {item}" for item, n in inventory.items())
+        lines.append(f"- Seu inventário: {items}" if items else "- Seu inventário está vazio.")
+    if s.get("holding"):
+        lines.append(f"- Na mão: {s['holding']}")
     doing = (s.get("skill") or {}).get("doing") if isinstance(s.get("skill"), dict) else None
     lines.append(f"- Agora você está: {doing}" if doing else "- Agora você está parada, sem fazer nada.")
     return "\n".join(lines)
