@@ -102,7 +102,9 @@ public final class ObtainSkill implements Skill {
 						total += other.count();
 					}
 				}
-				yield new CollectSkill(g.source(), total);
+				yield g.source().hunt()
+						? new HuntSkill(g.source().blocks(), g.source().items(), total, Names.pretty(g.item()))
+						: new CollectSkill(g.source(), total);
 			}
 			case Craft c -> new CraftSkill(c.recipe(), c.times(), knowledge);
 			case Smelt m -> new SmeltSkill(m.recipe(), m.times(), knowledge);

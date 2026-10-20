@@ -57,6 +57,7 @@ SIM_SKILLS = [
         },
     ),
     p.SkillSpec(name="eat", description="Comer.", params={"type": "object", "properties": {}}),
+    p.SkillSpec(name="shelter", description="Passar a noite num abrigo.", params={"type": "object", "properties": {}}),
     p.SkillSpec(name="stop", description="Parar o que está fazendo.", params={"type": "object", "properties": {}}),
 ]
 

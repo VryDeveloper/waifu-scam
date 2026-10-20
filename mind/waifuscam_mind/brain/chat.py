@@ -24,8 +24,10 @@ from collections.abc import Awaitable, Callable
 from .. import protocol as p
 from ..character import Character
 from ..llm import AllProvidersFailed, Budget, LLMClient
-from .actions import describe_actions, resolve
+from .actions import describe_actions, resolve, resolve_later
 from .base import Mouth
+from .needs import describe_needs
+from .will import Will, WillConfig
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ HISTORY_LINES = 30
 CONVERSATION_WINDOW = 45.0  # segundos em que a mesma pessoa ainda está "na conversa"
 DEATH_COMMENT_COOLDOWN = 20.0
 FAILURE_COMMENT_COOLDOWN = 15.0
+DANGER_COMMENT_COOLDOWN = 90.0
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
 MAX_LINE = 240
 MAX_TYPING_DELAY = 4.0
@@ -45,6 +48,8 @@ CHAT_RULES = """
 - Você consegue andar, seguir, minerar, coletar, craftar, fundir, comer, usar baús e entregar itens (veja "Ações").
   Ainda não consegue lutar, dormir nem construir. Se pedirem isso, responda de um jeito natural, sem prometer.
 - Pedido grande ("faz uma picareta de pedra") é uma ação só: o seu corpo sabe todos os passos.
+- Você decide os pedidos: topa (coloque a ação), adia (coloque [depois: ...] e diga quando) ou recusa, do seu jeito.
+  Adie quando tiver algo mais urgente (fome, noite, perigo). Seu corpo foge, revida e come sozinho por reflexo.
 """
 
 
@@ -95,6 +100,12 @@ def describe_situation(state: p.State | None, me: str) -> str:
         lines.append(f"- Na mão: {s['holding']}")
     doing = (s.get("skill") or {}).get("doing") if isinstance(s.get("skill"), dict) else None
     lines.append(f"- Agora você está: {doing}" if doing else "- Agora você está parada, sem fazer nada.")
+    if s.get("reflex"):
+        lines.append(f"- Por reflexo, agora: {s['reflex']}")
+    if "sky" in s:
+        lines.append(
+            "- Você está ao ar livre." if s["sky"] else "- Você está coberta (dentro de algo ou embaixo da terra)."
+        )
     return "\n".join(lines)
 
 
@@ -149,6 +160,15 @@ class ChatBrain:
         self._last_partner: str | None = None
         self._last_death_comment = float("-inf")
         self._last_failure_comment = float("-inf")
+        self._last_danger_comment = float("-inf")
+        limit = max(1, budget.daily_limit)
+        self.will = Will(
+            weights={k: float(v) for k, v in character.section("needs").items()},
+            config=WillConfig.from_section(character.section("will")),
+            speak=self._speak,
+            budget_fraction=lambda: self.budget.remaining / limit,
+            clock=clock,
+        )
         self._last_budget_notice = float("-inf")
 
     # ---- quando responder -----------------------------------------------------
@@ -189,13 +209,27 @@ class ChatBrain:
                 self._note("você renasceu")
             case "despawned":
                 self._note("você saiu do mundo")
+            case "danger":
+                kind = str(data.get("message") or "um monstro")
+                self._note(f"perigo: {kind} perto de você")
+                if self._clock() - self._last_danger_comment >= DANGER_COMMENT_COOLDOWN and mouth.state:
+                    self._last_danger_comment = self._clock()
+                    await self._speak(
+                        mouth,
+                        instruction=f"Um {kind} apareceu perto de você. Reaja em poucas palavras.",
+                        allow_action=False,
+                    )
             case "chat":
                 sender, text = str(data.get("from", "?")), str(data.get("text", ""))
+                self.will.heard_chat()
                 self.history.append({"role": "user", "content": f"{sender}: {text}"})
                 self._seq += 1
                 online = mouth.state is not None and mouth.state.online
                 if online and self.is_addressed(sender, text, mouth.state):
                     await self._speak(mouth, partner=sender, seq=self._seq)
+
+    async def on_state(self, mouth: Mouth, state: p.State) -> None:
+        await self.will.on_state(mouth, state)
 
     async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None:
         if isinstance(msg, p.SkillDone):
@@ -227,6 +261,7 @@ class ChatBrain:
         fallback: str | None = None,
         partner: str | None = None,
         seq: int | None = None,
+        allow_action: bool = True,
     ) -> None:
         async with self._lock:
             # Se várias mensagens chegaram enquanto ela pensava, uma resposta cobre todas.
@@ -241,9 +276,13 @@ class ChatBrain:
 
             persona = self.character.persona()
             situation = describe_situation(mouth.state, self.character.username)
-            skills = list(getattr(mouth, "skills", None) or [])
+            feelings = describe_needs(self.will.needs(mouth.state))
+            promises = self.will.pending()
+            if promises:
+                feelings += "\n## Você prometeu fazer depois\n" + "\n".join(f"- {pr.describe()}" for pr in promises)
+            skills = list(getattr(mouth, "skills", None) or []) if allow_action else []
             actions = describe_actions(skills)
-            system = f"{persona}\n\n{situation}\n{CHAT_RULES}" + (f"\n{actions}\n" if actions else "")
+            system = f"{persona}\n\n{situation}\n{feelings}\n{CHAT_RULES}" + (f"\n{actions}\n" if actions else "")
             messages = [{"role": "system", "content": system}, *self.history]
             if instruction:
                 messages.append({"role": "user", "content": f"[{instruction}]"})
@@ -258,6 +297,9 @@ class ChatBrain:
 
             players = [n for n in (mouth.state.model_dump().get("players", []) if mouth.state else [])]
             text, action = resolve(reply, skills, partner, players)
+            text, later = resolve_later(text, skills, partner, players)
+            if later is not None:
+                self.will.promise(later.skill, later.args, partner)
             lines = clean_reply(text, self._names)
             if not lines and fallback and action is None:
                 lines = [fallback]
@@ -268,11 +310,14 @@ class ChatBrain:
                 await self._sleep(min(MAX_TYPING_DELAY, len(line) / self.typing_speed))
                 await mouth.say(line)
                 self.history.append({"role": "assistant", "content": line})
-            if action is not None:
-                args = " ".join(str(v) for v in action.args.values())
-                tag = f"[ação: {action.skill} {args}]".replace(" ]", "]")
-                if lines:
-                    self.history[-1] = {"role": "assistant", "content": f"{lines[-1]}\n{tag}"}
+            for kind, chosen in (("ação", action), ("depois", later)):
+                if chosen is None:
+                    continue
+                args = " ".join(str(v) for v in chosen.args.values())
+                tag = f"[{kind}: {chosen.skill} {args}]".replace(" ]", "]")
+                if self.history and self.history[-1]["role"] == "assistant" and lines:
+                    last = self.history[-1]["content"]
+                    self.history[-1] = {"role": "assistant", "content": f"{last}\n{tag}"}
                 else:
                     self.history.append({"role": "assistant", "content": tag})
             if lines or action is not None:

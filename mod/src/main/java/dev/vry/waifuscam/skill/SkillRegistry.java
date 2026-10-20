@@ -139,6 +139,38 @@ public final class SkillRegistry {
 				"Pegar itens do baú mais perto.",
 				params("{\"type\":\"object\",\"properties\":{" + ITEM + "," + COUNT + "},\"required\":[\"item\"]}"),
 				(args, server, me) -> new ChestSkill(ChestSkill.Mode.WITHDRAW, choice(args), count(args), label(args))));
+
+		// ---- fase 5: sobreviver ----
+
+		register(new Spec("hunt",
+				"Caçar animais para comida ou material: cow, pig, sheep, chicken, rabbit. Nunca caça pet com nome nem filhote.",
+				params("{\"type\":\"object\",\"properties\":{\"animal\":{\"type\":\"string\",\"description\":\"cow, pig, sheep, chicken ou rabbit\"}," + COUNT + "},\"required\":[\"animal\"]}"),
+				(args, server, me) -> {
+					String animal = args.get("animal").getAsString().trim().toLowerCase(java.util.Locale.ROOT);
+					animal = switch (animal) {
+						case "vaca", "vacas", "cows" -> "cow";
+						case "porco", "porcos", "pigs" -> "pig";
+						case "ovelha", "ovelhas" -> "sheep";
+						case "galinha", "galinhas", "frango", "chickens" -> "chicken";
+						case "coelho", "coelhos", "rabbits" -> "rabbit";
+						default -> animal;
+					};
+					String id = animal.contains(":") ? animal : "minecraft:" + animal;
+					if (!net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.containsKey(net.minecraft.resources.Identifier.tryParse(id))) {
+						throw new SkillException("não conheço o bicho '" + animal + "'");
+					}
+					return new HuntSkill(Set.of(id), Set.of(), count(args), Names.pretty(animal));
+				}));
+
+		register(new Spec("attack",
+				"Lutar contra os monstros hostis por perto (count = quantos derrotar).",
+				params("{\"type\":\"object\",\"properties\":{" + COUNT + "}}"),
+				(args, server, me) -> HuntSkill.hostiles(me, count(args))));
+
+		register(new Spec("shelter",
+				"Passar a noite em segurança: cava um buraco, fecha em cima e sai de manhã (numa casa, só espera).",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new ShelterSkill()));
 	}
 
 	private SkillRegistry() {}

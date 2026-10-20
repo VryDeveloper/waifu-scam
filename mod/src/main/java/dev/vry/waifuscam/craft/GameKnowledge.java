@@ -227,6 +227,19 @@ public final class GameKnowledge implements Knowledge {
 		drop(Items.MELON_SLICE, Blocks.MELON);
 		drop(Items.BAMBOO, Blocks.BAMBOO);
 		drop(Items.CACTUS, Blocks.CACTUS);
+
+		// Caça (fase 5): carne crua vira comida na fornalha.
+		hunt(Items.BEEF, "cow", "mooshroom");
+		hunt(Items.LEATHER, "cow", "mooshroom");
+		hunt(Items.PORKCHOP, "pig");
+		hunt(Items.MUTTON, "sheep");
+		hunt(Stacks.item("white_wool"), "sheep");
+		hunt(Items.CHICKEN, "chicken");
+		hunt(Items.FEATHER, "chicken");
+		hunt(Items.RABBIT, "rabbit");
+		hunt(Items.STRING, "spider");
+		hunt(Items.BONE, "skeleton");
+		hunt(Items.ROTTEN_FLESH, "zombie");
 	}
 
 	private void drop(Item item, Block... blocks) {
@@ -237,6 +250,17 @@ public final class GameKnowledge implements Knowledge {
 		BlockState state = blocks[0].defaultBlockState();
 		sources.computeIfAbsent(Stacks.id(item), k -> new ArrayList<>())
 				.add(new Source(Set.of(Stacks.id(item)), ids, toolsFor(state)));
+	}
+
+	private void hunt(Item item, String... entities) {
+		if (item == null) {
+			return;
+		}
+		Set<String> ids = new LinkedHashSet<>();
+		for (String e : entities) {
+			ids.add("minecraft:" + e);
+		}
+		sources.computeIfAbsent(Stacks.id(item), k -> new ArrayList<>()).add(Source.hunting(Set.of(Stacks.id(item)), ids));
 	}
 
 	/** Ferramentas que soltam o drop deste bloco, da mais barata para a mais cara. */

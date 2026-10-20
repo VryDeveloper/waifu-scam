@@ -40,6 +40,7 @@ public final class CompanionManager {
 	private final BiConsumer<String, String> events; // (evento, detalhe) → Mente
 	private final SkillListener skillListener;
 	private final Controls controls = new Controls();
+	private final Reflexes reflexes;
 
 	private Skill skill;
 	private String skillId;
@@ -53,6 +54,17 @@ public final class CompanionManager {
 		this.server = server;
 		this.events = events;
 		this.skillListener = skillListener;
+		this.reflexes = new Reflexes(events);
+	}
+
+	/** Liga/desliga os reflexos (fugir, revidar, comer sozinha). */
+	public void setReflexes(boolean enabled) {
+		reflexes.setEnabled(enabled);
+	}
+
+	/** O que o reflexo está fazendo agora (comendo...), ou null. */
+	public String reflexDoing() {
+		return reflexes.doing();
 	}
 
 	public Controls controls() {
@@ -191,6 +203,7 @@ public final class CompanionManager {
 			return;
 		}
 		if (player.isDeadOrDying()) {
+			reflexes.reset();
 			endSkill("morri", true);
 			if (++deadTicks >= RESPAWN_DELAY_TICKS) {
 				deadTicks = 0;
@@ -200,17 +213,23 @@ public final class CompanionManager {
 		}
 		deadTicks = 0;
 
+		SkillContext ctx = new SkillContext(server, player, controls);
+		if (reflexes.before(ctx, server.getTickCount())) {
+			reflexes.after(ctx);
+			return; // a habilidade fica pausada neste tick
+		}
 		if (skill != null) {
-			Skill.Status status = skill.tick(new SkillContext(server, player, controls));
+			Skill.Status status = skill.tick(ctx);
 			if (status == Skill.Status.SUCCEEDED) {
 				endSkill(null);
 			} else if (status == Skill.Status.FAILED) {
 				String reason = skill.failureReason();
 				endSkill(reason == null ? "não deu certo" : reason);
 			}
-			return;
+		} else {
+			lookAtNearestPlayer(player);
 		}
-		lookAtNearestPlayer(player);
+		reflexes.after(ctx);
 	}
 
 	/** Parada, ela olha para o player mais perto, como alguém de verdade faria. */

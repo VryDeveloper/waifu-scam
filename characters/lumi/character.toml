@@ -15,7 +15,8 @@ username = "Lumi"         # nome de player no jogo: 3 a 16 letras, números ou _
 model = "slim"                   # "slim" (braços finos) ou "classic"
 
 [needs]
-# Pesos de 0 a 2: o quanto ela se importa com cada necessidade (fase 5)
+# Pesos de 0 a 2: o quanto ela se importa com cada necessidade. Entram no prompt
+# ("o que você mais quer agora") e mudam o que ela escolhe fazer sozinha.
 hunger = 1.0
 safety = 1.2
 energy = 1.0
@@ -23,6 +24,13 @@ social = 1.5
 progress = 0.8
 comfort = 1.3
 curiosity = 1.0
+
+[will]
+# Vontade própria (fase 5): o que ela faz quando ninguém pede nada.
+enabled = true
+think_every = 180         # segundos parada até decidir sozinha o que fazer (gasta 1 chamada de IA)
+shelter_at_night = true   # cava um abrigo quando anoitece e ela está ao ar livre
+hungry_think_every = 180  # com fome e sem comida, pensa no que fazer a cada N segundos
 
 [chat]
 greeting = "oi gente! cheguei"   # o que ela fala ao entrar no mundo

@@ -9,7 +9,10 @@ import dev.vry.waifuscam.bridge.MindClient;
 import dev.vry.waifuscam.bridge.Protocol;
 import dev.vry.waifuscam.command.WaifuCommand;
 import dev.vry.waifuscam.config.ModConfig;
+import dev.vry.waifuscam.hands.Combat;
 import dev.vry.waifuscam.hands.Stacks;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.LivingEntity;
 import dev.vry.waifuscam.skill.Skill;
 import dev.vry.waifuscam.skill.SkillRegistry;
 import net.fabricmc.api.ModInitializer;
@@ -198,6 +201,28 @@ public final class WaifuScamMod implements ModInitializer {
 			Stacks.summary(p.getInventory(), 20).forEach(inventory::addProperty);
 			s.add("inventory", inventory);
 			s.addProperty("holding", p.getMainHandItem().isEmpty() ? null : Stacks.id(p.getMainHandItem()).replace("minecraft:", ""));
+			// Sobrevivência (fase 5): perigo por perto, céu, luz, o que o reflexo está fazendo.
+			JsonArray threats = new JsonArray();
+			p.level().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(16), e -> Combat.isHostile(e, p))
+					.stream()
+					.sorted(java.util.Comparator.comparingDouble(e -> e.distanceToSqr(p)))
+					.limit(5)
+					.forEach(e -> {
+						JsonObject t = new JsonObject();
+						t.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).getPath());
+						t.addProperty("distance", Math.round(e.distanceTo(p) * 10) / 10.0);
+						threats.add(t);
+					});
+			s.add("threats", threats);
+			s.addProperty("sky", p.level().canSeeSky(p.blockPosition().above()));
+			s.addProperty("light", p.level().getMaxLocalRawBrightness(p.blockPosition()));
+			s.addProperty("in_water", p.isInWater());
+			s.addProperty("on_fire", p.isOnFire());
+			s.addProperty("air", p.getAirSupply());
+			String reflex = companions.reflexDoing();
+			if (reflex != null) {
+				s.addProperty("reflex", reflex);
+			}
 			Skill current = companions.currentSkill();
 			if (current != null) {
 				JsonObject skill = new JsonObject();

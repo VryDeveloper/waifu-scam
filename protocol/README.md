@@ -77,6 +77,12 @@ Habilidades novas no catálogo: `obtain` (`item`, `count`: ficar com pelo menos 
 
 `state` ganha `inventory` (até 20 itens, `{"oak_log": 12, ...}`) e `holding` (o item na mão).
 
+## Fase 5
+
+Habilidades novas: `hunt` (`animal`, `count`), `attack` (`count`) e `shelter`. `obtain` passa a caçar quando o item vem de bicho (carne crua, couro, lã).
+
+`state` ganha `threats` (`[{"type": "zombie", "distance": 4.2}]`), `sky` (ao ar livre?), `light`, `in_water`, `on_fire`, `air` e `reflex` (o que o reflexo está fazendo, ex.: `comendo`). Evento novo: `event` `danger` com `message` = tipo do bicho (no máximo um a cada 20 s por tipo).
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

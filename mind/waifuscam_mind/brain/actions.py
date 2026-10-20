@@ -19,6 +19,8 @@ from typing import Any
 from .. import protocol as p
 
 ACTION_LINE = re.compile(r"\[\s*a[çc][ãa]o\s*:\s*([a-z_][\w.]*)\s*([^\]]*)\]", re.IGNORECASE)
+# Promessa: a mesma ação, mas para depois ("[depois: obtain stone_pickaxe 1]").
+LATER_LINE = re.compile(r"\[\s*depois\s*:\s*([a-z_][\w.]*)\s*([^\]]*)\]", re.IGNORECASE)
 NUMBER = re.compile(r"^-?\d+(\.\d+)?$")
 PLAYER_NAME = re.compile(r"^\w{1,16}$")
 
@@ -66,6 +68,8 @@ def describe_actions(skills: list[p.SkillSpec]) -> str:
         "Sem nome de player, a ação vale para quem falou com você. Itens vão pelo id em inglês do Minecraft",
         "(oak_log, cobblestone, stone_pickaxe, torch, bread), e a quantidade é um número.",
         "Nunca escreva a linha da ação no meio da frase, e não explique a ação: só fale normalmente e coloque a linha.",
+        "Para ADIAR um pedido (você topa, mas agora não dá: está com fome, é noite, está ocupada), use a mesma",
+        "ação com 'depois' no lugar de 'ação', ex.: [depois: obtain stone_pickaxe 1]. Você faz quando ficar livre.",
     ]
     return "\n".join(lines)
 
@@ -136,7 +140,7 @@ def parse_args(spec: p.SkillSpec, raw: str, speaker: str | None, players: list[s
 
     if any(r not in args for r in required):
         return None
-    return args
+    return {n: args[n] for n in names if n in args}  # na ordem do catálogo
 
 
 def resolve(
@@ -153,3 +157,19 @@ def resolve(
     if args is None:
         return text, None
     return text, Action(spec.name, args)
+
+
+def resolve_later(
+    reply: str, skills: list[p.SkillSpec], speaker: str | None, players: list[str]
+) -> tuple[str, Action | None]:
+    """Como resolve(), mas para a linha [depois: ...] (promessa)."""
+    matches = list(LATER_LINE.finditer(reply))
+    if not matches:
+        return reply, None
+    text = LATER_LINE.sub("", reply)
+    last = matches[-1]
+    spec = next((s for s in skills if s.name == last.group(1).lower()), None)
+    if spec is None:
+        return text, None
+    args = parse_args(spec, last.group(2).strip(), speaker, players)
+    return text, (Action(spec.name, args) if args is not None else None)

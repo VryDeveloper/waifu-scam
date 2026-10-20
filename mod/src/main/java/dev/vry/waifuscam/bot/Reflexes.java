@@ -1,0 +1,130 @@
+package dev.vry.waifuscam.bot;
+
+import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.hands.Combat;
+import dev.vry.waifuscam.hands.Food;
+import dev.vry.waifuscam.skill.EatSkill;
+import dev.vry.waifuscam.skill.Skill;
+import dev.vry.waifuscam.skill.SkillContext;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Creeper;
+
+import java.util.Optional;
+import java.util.function.BiConsumer;
+
+/**
+ * Reflexos: o que ela faz sem pensar, a cada tick, antes da habilidade atual.
+ * Fugir de creeper, revidar quem bate nela, comer quando a fome aperta, subir
+ * para respirar. Não esperam a IA: a IA só fica sabendo depois (eventos).
+ *
+ * Quando um reflexo assume, a habilidade atual fica pausada (não termina) e
+ * continua sozinha quando o perigo passa.
+ */
+final class Reflexes {
+	/** Comer quando a fome chegar aqui (abaixo de 18 a vida não regenera; em 6 não corre). */
+	private static final int EAT_BELOW = 15;
+	private static final double DANGER_RADIUS = 12;
+	private static final double ENGAGE_RADIUS = 8;
+	private static final int EVENT_COOLDOWN = 20 * 20;
+
+	private final BiConsumer<String, String> events;
+	private Skill interrupt;
+	private int eatCooldown;
+	private int lastDangerEvent = -EVENT_COOLDOWN;
+	private String lastDangerType;
+	private boolean enabled = true;
+
+	Reflexes(BiConsumer<String, String> events) {
+		this.events = events;
+	}
+
+	void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	/** O que ela está fazendo por reflexo agora (para o state), ou null. */
+	String doing() {
+		return interrupt != null ? interrupt.describe() : null;
+	}
+
+	void reset() {
+		interrupt = null;
+	}
+
+	/** true = o reflexo assumiu neste tick e a habilidade não deve rodar. */
+	boolean before(SkillContext ctx, int tick) {
+		if (!enabled) {
+			return false;
+		}
+		ServerPlayer me = ctx.player();
+		Controls c = ctx.controls();
+		Optional<LivingEntity> threat = Combat.nearestHostile(me, DANGER_RADIUS);
+
+		if (threat.isPresent()) {
+			LivingEntity t = threat.get();
+			double dist = t.distanceTo(me);
+			announce(t, tick);
+			boolean creeperClose = t instanceof Creeper creeper && (creeper.getSwellDir() > 0 || dist < 4);
+			if (creeperClose || (me.getHealth() <= 6 && dist < ENGAGE_RADIUS)) {
+				interrupt = null;
+				Combat.flee(me, t, c);
+				return true;
+			}
+			boolean targetingMe = t instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() == me;
+			if (dist <= Combat.REACH + 0.6 || (targetingMe && dist <= ENGAGE_RADIUS && !(t instanceof Creeper))) {
+				interrupt = null;
+				Combat.fight(me, t, c);
+				return true;
+			}
+		}
+
+		if (interrupt != null) {
+			Skill.Status s = interrupt.tick(ctx);
+			if (s != Skill.Status.RUNNING) {
+				if (s == Skill.Status.FAILED) {
+					eatCooldown = 20 * 30;
+				}
+				interrupt = null;
+			}
+			return true;
+		}
+
+		if (eatCooldown > 0) {
+			eatCooldown--;
+		} else if (!me.isUsingItem() && hungry(me) && Food.hasFood(me) && threat.isEmpty()) {
+			interrupt = new EatSkill(false);
+			return true;
+		}
+		return false;
+	}
+
+	/** Depois da habilidade: o que vale por cima de qualquer coisa (respirar). */
+	void after(SkillContext ctx) {
+		if (!enabled) {
+			return;
+		}
+		ServerPlayer me = ctx.player();
+		if (me.isUnderWater() && me.getAirSupply() < me.getMaxAirSupply() / 2) {
+			ctx.controls().jump(true);
+		}
+		if (me.isInLava()) {
+			ctx.controls().jump(true).forward(1).sprint(true);
+		}
+	}
+
+	private static boolean hungry(ServerPlayer me) {
+		int food = me.getFoodData().getFoodLevel();
+		return food < EAT_BELOW || (me.getHealth() < me.getMaxHealth() - 6 && food < 18);
+	}
+
+	private void announce(LivingEntity t, int tick) {
+		String type = BuiltInRegistries.ENTITY_TYPE.getKey(t.getType()).getPath();
+		if (tick - lastDangerEvent >= EVENT_COOLDOWN || !type.equals(lastDangerType)) {
+			lastDangerEvent = tick;
+			lastDangerType = type;
+			events.accept("danger", type);
+		}
+	}
+}

@@ -26,4 +26,6 @@ class Mouth(Protocol):
 class Brain(Protocol):
     async def on_event(self, mouth: Mouth, event: p.Event) -> None: ...
 
-    # Opcional: async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None
+    # Opcionais:
+    # async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None
+    # async def on_state(self, mouth: Mouth, state: p.State) -> None   (a cada ~2 s)

@@ -232,6 +232,9 @@ async def on_ping(session: Session, msg: p.Envelope) -> None:
 async def on_state(session: Session, msg: p.Envelope) -> None:
     assert isinstance(msg, p.State)
     session.state = msg
+    handler = getattr(session.server.brain, "on_state", None)
+    if handler is not None and session.ready:
+        session.run_in_background(handler(EventMouth(session, msg), msg))
 
 
 @MindServer.handles("event")

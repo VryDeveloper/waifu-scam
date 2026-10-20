@@ -35,6 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * /waifu obtain|craft|collect <item> [n] — ela consegue, crafta ou coleta itens
  * /waifu give <item> [n] — ela te entrega itens
  * /waifu eat | deposit | inv — comer, guardar no baú, ver o inventário
+ * /waifu shelter | attack | hunt <bicho> — abrigo para a noite, lutar, caçar
+ * /waifu reflexes on|off — liga/desliga os reflexos (fugir, revidar, comer)
  */
 public final class WaifuCommand {
 	private static final AtomicInteger COMMAND_IDS = new AtomicInteger();
@@ -156,6 +158,22 @@ public final class WaifuCommand {
 						run(ctx.getSource(), mod, "eat", new JsonObject(), "Ela vai comer.")))
 				.then(Commands.literal("deposit").executes(ctx ->
 						run(ctx.getSource(), mod, "deposit", new JsonObject(), "Ela vai guardar as coisas no baú.")))
+				// ---- fase 5: sobreviver ----
+				.then(Commands.literal("shelter").executes(ctx ->
+						run(ctx.getSource(), mod, "shelter", new JsonObject(), "Ela vai se abrigar.")))
+				.then(Commands.literal("attack").executes(ctx ->
+						run(ctx.getSource(), mod, "attack", new JsonObject(), "Ela vai atacar os monstros.")))
+				.then(Commands.literal("hunt")
+						.then(Commands.argument("animal", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[] {"cow", "pig", "sheep", "chicken", "rabbit"}, builder))
+								.executes(ctx -> {
+									JsonObject args = new JsonObject();
+									args.addProperty("animal", StringArgumentType.getString(ctx, "animal"));
+									return run(ctx.getSource(), mod, "hunt", args, "Ela vai caçar.");
+								})))
+				.then(Commands.literal("reflexes")
+						.then(Commands.literal("on").executes(ctx -> reflexes(ctx.getSource(), mod, true)))
+						.then(Commands.literal("off").executes(ctx -> reflexes(ctx.getSource(), mod, false))))
 				.then(Commands.literal("inv").executes(ctx -> {
 					CompanionManager companions = mod.companions();
 					CompanionPlayer p = companions == null ? null : companions.player();
@@ -169,6 +187,17 @@ public final class WaifuCommand {
 					ctx.getSource().sendSuccess(() -> Component.literal(text), false);
 					return 1;
 				})));
+	}
+
+	private static int reflexes(CommandSourceStack src, WaifuScamMod mod, boolean on) {
+		CompanionManager companions = mod.companions();
+		if (companions == null) {
+			return 0;
+		}
+		companions.setReflexes(on);
+		src.sendSuccess(() -> Component.literal(on ? "Reflexos ligados: ela foge, revida e come sozinha."
+				: "Reflexos desligados (para testar)."), false);
+		return 1;
 	}
 
 	private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> itemSkill(

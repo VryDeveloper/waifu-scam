@@ -41,3 +41,9 @@ O Mineflayer, usado pela maioria dos bots de IA de Minecraft, só suporta oficia
 - **`craft/GameKnowledge`** — tira as receitas do servidor (inclusive de datapacks) e as tags de ferramenta de cada bloco. As fontes naturais são uma lista curada para ela não desmontar construções.
 - **`ObtainSkill`** — executa só o primeiro passo do plano e replaneja com o inventário novo. Se ela minerou bétula em vez de carvalho, o próximo plano usa bétula.
 - **`hands/`** — `Digger` quebra blocos pelo mesmo caminho de um player (o bloco racha aos poucos e solta o drop normal), `Placer` coloca blocos clicando numa face, `Crafter` monta a grade com os itens dela e confere com a receita do jogo antes de trocar os ingredientes pelo resultado.
+
+## Vontade própria (fase 5)
+
+- **Reflexos (Corpo, `bot/Reflexes`)** — rodam a cada tick antes da habilidade e a pausam enquanto agem: fugir de creeper e de briga com pouca vida, revidar quem está mirando nela, comer quando a fome passa de 15, subir para respirar, pular para sair da lava. A IA só fica sabendo depois (`danger`).
+- **Necessidades (Mente, `brain/needs.py`)** — fome, segurança, descanso, social, progresso, conforto e curiosidade viram urgências de 0 a 1, multiplicadas pelos pesos da personagem, e entram no prompt como "o que você mais quer agora".
+- **Vontade (Mente, `brain/will.py`)** — quando ela está parada: abrigo ao anoitecer (instinto, sem gastar IA), promessas pendentes, fome sem comida e tédio viram uma decisão da IA. Pedidos adiados com `[depois: ...]` viram promessas e são cumpridos quando ela fica livre.

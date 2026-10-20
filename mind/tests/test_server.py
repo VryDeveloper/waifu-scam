@@ -129,7 +129,7 @@ async def test_hello_catalog_is_stored(server):
     async with SimulatedBody(url(server)) as body:
         await body.handshake()
         [session] = server.sessions
-        assert [s.name for s in session.skills] == ["follow", "goto", "obtain", "give", "eat", "stop"]
+        assert [s.name for s in session.skills] == ["follow", "goto", "obtain", "give", "eat", "shelter", "stop"]
 
 
 async def test_echo_brain_understands_fixed_requests_and_reports_failures(server):

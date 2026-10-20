@@ -262,7 +262,7 @@ public final class Planner {
 		}
 		sim.steps.add(new Gather(source, item, missing));
 		sim.add(item, missing);
-		sim.cost += 10 * missing;
+		sim.cost += (source.hunt() ? 25 : 10) * missing;
 		return null;
 	}
 

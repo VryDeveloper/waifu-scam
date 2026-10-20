@@ -38,15 +38,26 @@ public interface Knowledge {
 	record SmeltRecipe(String id, String output, int count, Choice input) {}
 
 	/**
-	 * De onde um item sai minerando. items = a família aceita (quebrar qualquer tronco
-	 * serve quando se pede um tronco), blocks = blocos que soltam esses itens,
-	 * tools = ferramentas que servem, da mais barata para a mais cara (vazio = na mão).
+	 * De onde um item sai minerando (ou caçando, se hunt). items = a família aceita
+	 * (quebrar qualquer tronco serve quando se pede um tronco), blocks = blocos (ou
+	 * bichos) que soltam esses itens, tools = ferramentas que servem, da mais barata
+	 * para a mais cara (vazio = na mão).
 	 */
-	record Source(Set<String> items, Set<String> blocks, List<String> tools) {
+	record Source(Set<String> items, Set<String> blocks, List<String> tools, boolean hunt) {
 		public Source {
 			items = Set.copyOf(items);
 			blocks = Set.copyOf(blocks);
 			tools = List.copyOf(tools);
+		}
+
+		/** Fonte de mineração. */
+		public Source(Set<String> items, Set<String> blocks, List<String> tools) {
+			this(items, blocks, tools, false);
+		}
+
+		/** Fonte de caça: blocks são os tipos de bicho ("minecraft:cow"). */
+		public static Source hunting(Set<String> items, Set<String> entities) {
+			return new Source(items, entities, List.of(), true);
 		}
 	}
 
