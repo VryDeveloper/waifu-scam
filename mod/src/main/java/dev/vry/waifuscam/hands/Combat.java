@@ -98,8 +98,10 @@ public final class Combat {
 		controls.lookAt(target.getEyePosition().add(0, -0.3, 0));
 		double dist = me.distanceTo(target);
 		if (dist > REACH) {
-			controls.forward(1);
-			controls.jump(me.horizontalCollision && me.onGround());
+			if (safeAhead(me, target)) {
+				controls.forward(1);
+				controls.jump(me.horizontalCollision && me.onGround());
+			}
 			return false;
 		}
 		if (dist < 1.2) {
@@ -111,6 +113,27 @@ public final class Combat {
 			me.resetAttackStrengthTicker();
 			me.resetLastActionTime();
 			return true;
+		}
+		return false;
+	}
+
+	/** Dá para dar um passo na direção do alvo sem cair num buraco fundo ou na lava? */
+	static boolean safeAhead(ServerPlayer me, Entity target) {
+		Vec3 dir = target.position().subtract(me.position()).multiply(1, 0, 1);
+		if (dir.lengthSqr() < 1.0E-4) {
+			return true;
+		}
+		Vec3 step = me.position().add(dir.normalize().scale(0.9));
+		net.minecraft.core.BlockPos feet = net.minecraft.core.BlockPos.containing(step);
+		var level = me.level();
+		for (int down = 0; down <= 3; down++) {
+			net.minecraft.core.BlockPos p = feet.below(down);
+			if (!level.getFluidState(p).isEmpty() && level.getFluidState(p).is(net.minecraft.tags.FluidTags.LAVA)) {
+				return false;
+			}
+			if (!level.getBlockState(p).getCollisionShape(level, p).isEmpty()) {
+				return true; // chão a no máximo 3 blocos
+			}
 		}
 		return false;
 	}

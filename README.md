@@ -10,7 +10,7 @@
 
 Ela joga como uma player de verdade: tem vida e fome, vontades próprias, conversa pelo chat com a personalidade que você escrever e decide se aceita, adia ou recusa os seus pedidos. A IA roda em planos gratuitos (Groq, Gemini, OpenRouter) ou localmente com Ollama.
 
-> **Status: fase 6 de 7.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa com a personalidade dela usando IA gratuita, anda, minera, crafta, funde, caça, come, usa baús e te entrega itens ("faz uma picareta de pedra" ela resolve do zero). E tem vontade própria: foge de creeper, revida, come quando tem fome, cava um abrigo quando anoitece, adia pedidos quando tem algo mais urgente e, parada, decide sozinha o que fazer. E lembra: lugares (a base, onde morreu), quem é quem, o que prometeu e um diário do que aconteceu, mesmo depois de reiniciar. Veja o [roadmap](#roadmap).
+> **Status: fases 1 a 7 feitas, em teste.** Ela entra no mundo quando você abre a LAN, com skin, vida e fome de verdade, conversa com a personalidade dela usando IA gratuita, anda, minera, crafta, funde, caça, come, usa baús e te entrega itens ("faz uma picareta de pedra" ela resolve do zero). E tem vontade própria: foge de creeper, revida, come quando tem fome, cava um abrigo quando anoitece, adia pedidos quando tem algo mais urgente e, parada, decide sozinha o que fazer. E lembra: lugares (a base, onde morreu), quem é quem, o que prometeu e um diário do que aconteceu, mesmo depois de reiniciar. Veja o [roadmap](#roadmap).
 
 ## Como funciona
 
@@ -93,7 +93,7 @@ cd mod
 ./gradlew build
 ```
 
-Copie `mod/build/libs/waifuscam-0.6.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
+Copie `mod/build/libs/waifuscam-0.7.0.jar` e o jar da Fabric API para a pasta `mods` do perfil Fabric 26.3. Na primeira execução o mod cria `config/waifuscam.json`:
 
 | Campo | Padrão | O que faz |
 |---|---|---|
@@ -124,6 +124,7 @@ Copie `mod/build/libs/waifuscam-0.6.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu hunt <bicho>` | Ela caça `cow`, `pig`, `sheep`, `chicken` ou `rabbit` |
 | `/waifu attack` | Ela luta contra os monstros por perto |
 | `/waifu reflexes on\|off` | Liga ou desliga os reflexos (fugir, revidar, comer sozinha) |
+| `/waifu sleep` | Ela dorme na cama livre mais perto até amanhecer |
 | `/waifu remember <nome>` | Ela guarda na memória o lugar onde você está (ex.: `/waifu remember base`) |
 
 Os comandos obedecem na hora, para testar. Pelo chat é diferente: você pede ("lumi, me segue", "faz uma picareta de pedra", "me dá 10 tochas", "guarda as coisas no baú") e ela decide se topa, do jeito da persona. Sem chave de IA, ela entende só "me segue", "vem aqui" e "para".
@@ -147,6 +148,8 @@ cp -r characters/lumi characters/private/minha-vtuber
 ```
 
 Edite os dois arquivos e defina `WAIFU_CHARACTER=minha-vtuber` no `.env` (copie de `.env.example`). Tudo em `characters/private/` e `skins/` fica fora do Git.
+
+Além da persona, o `character.toml` controla o jeito dela viver: `[needs]` (o quanto cada necessidade pesa), `[will]` (de quanto em quanto tempo ela decide sozinha, se abriga à noite) e `[plugins]` (extensões da Mente, veja [mind/plugins](mind/plugins/)).
 
 ### Skin
 
@@ -183,9 +186,11 @@ waifu-scam/
 │   │   ├── character.py        # carrega o pacote de personagem
 │   │   ├── skins.py            # skin por conta (Mojang) ou PNG (MineSkin), com cache
 │   │   ├── memory.py           # memória de longo prazo: lugares, pessoas, notas, diário
+│   │   ├── plugins.py          # carregador de plugins (ganchos on_event, prompt, on_say)
 │   │   ├── brain/              # o que ela faz com os eventos (eco ou IA) e as ações que ela escolhe
 │   │   ├── llm/                # provedores gratuitos com fallback e orçamento diário
 │   │   └── sim/body.py         # corpo simulado para testes
+│   ├── plugins/            # plugins da Mente (exemplo: relogio.py)
 │   └── tests/
 ├── characters/     # personagens (private/ fica fora do Git)
 ├── protocol/       # JSON Schema do protocolo v1
@@ -203,7 +208,11 @@ waifu-scam/
 | 4 · Mãos 🧪 | Quebrar, coletar, craftar, fundir, comer, baús | Faz uma picareta de pedra do zero |
 | 5 · Vontade própria 🧪 | Necessidades, reflexos, abrigo, caça, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |
 | 6 · Memória 🧪 | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |
-| 7 · Polimento | Combate, dormir, abrigo, várias personagens, plugins | Contínuo |
+| 7 · Polimento 🧪 | Dormir na cama, armadura e escudo automáticos, plugins da Mente | Contínuo |
+
+🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
+
+Próximos passos depois dos testes: várias personagens ao mesmo tempo, construir, combate à distância (arco), voz.
 
 ## Desenvolvimento
 

@@ -1,6 +1,7 @@
 package dev.vry.waifuscam.bot;
 
 import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.hands.Armor;
 import dev.vry.waifuscam.hands.Combat;
 import dev.vry.waifuscam.hands.Food;
 import dev.vry.waifuscam.skill.EatSkill;
@@ -26,7 +27,7 @@ final class Reflexes {
 	/** Comer quando a fome chegar aqui (abaixo de 18 a vida não regenera; em 6 não corre). */
 	private static final int EAT_BELOW = 15;
 	private static final double DANGER_RADIUS = 12;
-	private static final double ENGAGE_RADIUS = 8;
+	private static final double ENGAGE_RADIUS = 6;
 	private static final int EVENT_COOLDOWN = 20 * 20;
 
 	private final BiConsumer<String, String> events;
@@ -59,6 +60,9 @@ final class Reflexes {
 			return false;
 		}
 		ServerPlayer me = ctx.player();
+		if (me.isSleeping()) {
+			return false; // dormindo: o jogo acorda ela se algo acontecer
+		}
 		Controls c = ctx.controls();
 		Optional<LivingEntity> threat = Combat.nearestHostile(me, DANGER_RADIUS);
 
@@ -91,6 +95,9 @@ final class Reflexes {
 			return true;
 		}
 
+		if (tick % 100 == 0 && threat.isEmpty() && !me.isUsingItem()) {
+			Armor.equipBest(me); // vestiu armadura nova que pegou
+		}
 		if (eatCooldown > 0) {
 			eatCooldown--;
 		} else if (!me.isUsingItem() && hungry(me) && Food.hasFood(me) && threat.isEmpty()) {

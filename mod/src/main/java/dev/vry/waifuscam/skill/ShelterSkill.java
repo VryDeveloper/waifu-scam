@@ -27,7 +27,8 @@ import java.util.List;
  * Passar a noite em segurança: cava um buraco de 3 blocos, fecha em cima, espera
  * amanhecer, abre e sobe tapando o buraco de novo (o terreno fica como estava).
  *
- * Se ela estiver num chão construído (casa de alguém), não cava: só espera ali.
+ * Se tiver cama por perto, dorme nela. Se ela estiver num chão construído (casa
+ * de alguém), não cava: só espera ali.
  */
 public final class ShelterSkill implements Skill {
 	private static final int DEPTH = 3;
@@ -35,7 +36,7 @@ public final class ShelterSkill implements Skill {
 			Items.NETHERRACK, Items.STONE, Items.ANDESITE, Items.DIORITE, Items.GRANITE, Items.TUFF,
 			Items.OAK_PLANKS, Items.SPRUCE_PLANKS, Items.BIRCH_PLANKS);
 
-	private enum Phase { START, DIG, LAND, SEAL, WAIT, OPEN, PILLAR }
+	private enum Phase { START, BED, DIG, LAND, SEAL, WAIT, OPEN, PILLAR }
 
 	private Phase phase = Phase.START;
 	private int topY;
@@ -44,6 +45,7 @@ public final class ShelterSkill implements Skill {
 	private int phaseTicks;
 	private BlockPos seal;
 	private int pillarTarget;
+	private Skill bed;
 	private String failure;
 
 	@Override
@@ -54,6 +56,7 @@ public final class ShelterSkill implements Skill {
 	@Override
 	public String describe() {
 		return switch (phase) {
+			case BED -> bed != null ? bed.describe() : "indo dormir";
 			case WAIT -> "esperando amanhecer no abrigo";
 			case OPEN, PILLAR -> "saindo do abrigo";
 			default -> "fazendo um abrigo para a noite";
@@ -79,6 +82,12 @@ public final class ShelterSkill implements Skill {
 				if (!dangerous(level)) {
 					return Status.SUCCEEDED;
 				}
+				// Cama por perto é melhor que buraco (fase 7).
+				if (SleepSkill.nearestBed(me, java.util.Set.of()) != null) {
+					bed = new SleepSkill();
+					next(Phase.BED);
+					return Status.RUNNING;
+				}
 				BlockState floor = level.getBlockState(me.blockPosition().below());
 				if (!natural(floor)) {
 					next(Phase.WAIT); // chão construído: deve ser uma casa
@@ -86,6 +95,19 @@ public final class ShelterSkill implements Skill {
 				}
 				topY = me.getBlockY();
 				next(Phase.DIG);
+			}
+			case BED -> {
+				Status s = bed.tick(ctx);
+				if (s == Status.SUCCEEDED) {
+					return Status.SUCCEEDED;
+				}
+				if (s == Status.FAILED) {
+					bed = null;
+					// Não deu para dormir: volta para o plano do buraco.
+					BlockState floor = level.getBlockState(me.blockPosition().below());
+					topY = me.getBlockY();
+					next(natural(floor) ? Phase.DIG : Phase.WAIT);
+				}
 			}
 			case DIG -> {
 				if (digger == null) {

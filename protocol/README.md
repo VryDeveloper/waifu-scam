@@ -87,6 +87,10 @@ Habilidades novas: `hunt` (`animal`, `count`), `attack` (`count`) e `shelter`. `
 
 Evento novo do Corpo: `event` `remember_place` (`name`, `x`, `y`, `z`, `dimension`, `from`), mandado pelo `/waifu remember`. A memória fica toda na Mente; `goto` com o nome de um lugar lembrado vira coordenadas antes de sair para o Corpo.
 
+## Fase 7
+
+Habilidade nova: `sleep` (dormir na cama livre mais perto). `shelter` passa a preferir cama quando tem uma por perto. Armadura e escudo são vestidos sozinhos pelo corpo, sem mensagem nova.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

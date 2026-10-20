@@ -79,6 +79,7 @@ class Will:
     speak: Speak  # ChatBrain._speak
     budget_fraction: Callable[[], float]
     clock: Callable[[], float] = time.monotonic
+    start: Callable[..., Awaitable[str]] | None = None  # (mouth, skill, args, partner) → id
 
     promises: deque[Promise] = field(default_factory=lambda: deque(maxlen=MAX_PROMISES))
     last_busy: float = field(default=0.0)
@@ -150,8 +151,8 @@ class Will:
             self.last_busy = now
             await self._run(
                 mouth,
-                instruction=f"Agora você está livre e vai fazer o que tinha prometido: {promise.describe()}. "
-                "Avise em uma frase curta.",
+                instruction=f"Agora você está livre e está COMEÇANDO o que tinha prometido: {promise.describe()}. "
+                "Avise em uma frase curta que vai fazer agora (ainda não terminou).",
                 fallback="bora fazer aquilo agora",
                 action=(promise.skill, promise.args),
                 partner=promise.requester,
@@ -200,7 +201,10 @@ class Will:
         self._thinking = True
         try:
             if action is not None:
-                await mouth.start_skill(*action)
+                if self.start is not None:
+                    await self.start(mouth, action[0], action[1], partner)
+                else:
+                    await mouth.start_skill(*action)
             await self.speak(
                 mouth, instruction=instruction, fallback=fallback, partner=partner, allow_action=action is None
             )

@@ -25,6 +25,7 @@ from .. import protocol as p
 from ..character import Character
 from ..llm import AllProvidersFailed, Budget, LLMClient
 from ..memory import Memory
+from ..plugins import Plugins
 from .actions import describe_actions, resolve, resolve_later
 from .base import Mouth
 from .needs import describe_needs
@@ -39,6 +40,17 @@ FAILURE_COMMENT_COOLDOWN = 15.0
 DANGER_COMMENT_COOLDOWN = 90.0
 DIARY_MIN_INTERVAL = 600.0  # segundos reais entre entradas do diário
 DIARY_MIN_LINES = 6  # falas novas desde a última entrada
+# "aqui é a nossa base", "lembra desse lugar como mina": guarda mesmo se a IA esquecer a tag
+PLACE_SAID = re.compile(
+    r"\b(?:aqui\s+(?:é|e|eh|vai\s+ser|fica)|lembr[ae]\s+(?:desse|deste|daqui|desse\s+lugar)\s+como|"
+    r"esse\s+lugar\s+(?:é|e)|chama\s+(?:aqui|esse\s+lugar)\s+de)\s+(?:(?:a|o|nossa|nosso|minha|meu|tua|sua)\s+)*"
+    r"([a-zà-ú][\wà-ú]*(?:\s+de\s+[\wà-ú]+)?)",
+    re.IGNORECASE,
+)
+# "me dá", "me passa": é para entregar, mesmo se a IA escolher só conseguir o item
+GIVE_ASKED = re.compile(r"\bme\s+(?:d[áaê]|passa|empresta|entrega|arruma|traz)\b", re.IGNORECASE)
+WORK_SKILLS = {"obtain", "craft", "collect", "give", "hunt", "deposit", "withdraw"}
+DONE_COMMENT_COOLDOWN = 20.0
 MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
 MAX_LINE = 240
@@ -50,11 +62,15 @@ CHAT_RULES = """
 - No máximo 2 frases curtas (até uns 200 caracteres). O chat do jogo é pequeno.
 - As mensagens chegam como "Nome: texto". Linhas entre colchetes são coisas que aconteceram no jogo, não falas.
 - Você consegue andar, seguir, minerar, coletar, craftar, fundir, comer, usar baús e entregar itens (veja "Ações").
-  Ainda não consegue lutar, dormir nem construir. Se pedirem isso, responda de um jeito natural, sem prometer.
+  Também luta, caça, dorme na cama e se abriga à noite. Ainda não constrói nem usa arco: se pedirem isso, responda
+  de um jeito natural, sem prometer.
 - Pedido grande ("faz uma picareta de pedra") é uma ação só: o seu corpo sabe todos os passos.
-- Memória: para guardar o lugar onde você está agora, coloque [lembrar: nome] (ex.: quando dizem "aqui é a
-  nossa base" → [lembrar: base]); para esquecer, [esquecer: nome]. Para guardar algo importante sobre alguém ou
-  sobre o mundo, [nota: frase curta]. Use pouco, só para o que vale lembrar amanhã.
+- Se pedirem para você DAR ou PASSAR algo ("me dá 4 tochas"), use give: ele já consegue o item se faltar.
+- A ação só começa quando você a coloca. Nunca diga que já terminou ou que já entregou: o seu corpo avisa quando
+  acabar, e aí você conta.
+- Memória: dizer "vou lembrar" não guarda nada. Para guardar o lugar onde você está, coloque [lembrar: nome]
+  (ex.: "aqui é a nossa base" → [lembrar: base]); para esquecer, [esquecer: nome]. Para guardar algo
+  importante sobre alguém ou sobre o mundo, [nota: frase curta]. Use pouco, só para o que vale lembrar amanhã.
 - Você decide os pedidos: topa (coloque a ação), adia (coloque [depois: ...] e diga quando) ou recusa, do seu jeito.
   Adie quando tiver algo mais urgente (fome, noite, perigo). Seu corpo foge, revida e come sozinho por reflexo.
 """
@@ -147,8 +163,10 @@ class ChatBrain:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         memory: Memory | None = None,
+        plugins: Plugins | None = None,
     ):
         self.character = character
+        self.plugins = plugins if plugins is not None else Plugins()
         self.memory = memory if memory is not None else Memory(None)
         self.llm = llm
         self.budget = budget
@@ -170,6 +188,8 @@ class ChatBrain:
         self._last_death_comment = float("-inf")
         self._last_failure_comment = float("-inf")
         self._last_danger_comment = float("-inf")
+        self._last_done_comment = float("-inf")
+        self._started: dict[str, tuple[str, dict, str | None]] = {}  # id → (habilidade, args, para quem)
         limit = max(1, budget.daily_limit)
         self.will = Will(
             weights={k: float(v) for k, v in character.section("needs").items()},
@@ -177,6 +197,7 @@ class ChatBrain:
             speak=self._speak,
             budget_fraction=lambda: self.budget.remaining / limit,
             clock=clock,
+            start=self._start,
         )
         # Continua de onde parou: últimas falas e promessas da sessão anterior.
         self.history.extend(self.memory.history[-HISTORY_LINES:])
@@ -185,6 +206,7 @@ class ChatBrain:
         self._last_day_time: int | None = None
         self._last_diary = self._clock()
         self._lines_since_diary = 0
+        self._last_text: dict[str, str] = {}  # última fala de cada player
         self._last_budget_notice = float("-inf")
 
     # ---- quando responder -----------------------------------------------------
@@ -204,6 +226,7 @@ class ChatBrain:
     # ---- eventos ----------------------------------------------------------------
 
     async def on_event(self, mouth: Mouth, event: p.Event) -> None:
+        await self.plugins.on_event(mouth, event)
         data = event.model_dump()
         match event.event:
             case "spawned":
@@ -252,6 +275,8 @@ class ChatBrain:
                 self.will.heard_chat()
                 self.memory.talked(sender)
                 self._lines_since_diary += 1
+                self._place_from_chat(text, mouth)
+                self._last_text[sender] = text
                 self.history.append({"role": "user", "content": f"{sender}: {text}"})
                 self._seq += 1
                 online = mouth.state is not None and mouth.state.online
@@ -286,6 +311,7 @@ class ChatBrain:
             return
         self._last_diary = self._clock()
         self._lines_since_diary = 0
+        self._last_text: dict[str, str] = {}  # última fala de cada player
         messages = [
             {"role": "system", "content": self.character.persona()},
             *self.history,
@@ -304,10 +330,42 @@ class ChatBrain:
         self.memory.write_diary(entry)
         log.info("Diário: %s", entry)
 
+    async def _start(self, mouth: Mouth, skill: str, args: dict, partner: str | None = None) -> str:
+        skill_id = await mouth.start_skill(skill, args)
+        self._started[skill_id] = (skill, args, partner)
+        while len(self._started) > 50:
+            self._started.pop(next(iter(self._started)))
+        return skill_id
+
+    def _place_from_chat(self, text: str, mouth: Mouth) -> None:
+        match = PLACE_SAID.search(text)
+        st = mouth.state.model_dump() if mouth.state else {}
+        if match and "x" in st:
+            name = match.group(1).strip()
+            if name.lower() not in {"que", "onde", "isso", "perigoso", "bom", "legal", "longe", "perto"}:
+                self.memory.remember_place(name, st["x"], st["y"], st["z"], st.get("dimension", ""))
+
     async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None:
+        started = self._started.pop(msg.id, None)
         if isinstance(msg, p.SkillDone):
             if msg.skill != "stop":
                 self._note(f"você terminou: {msg.skill}")
+            if (
+                started is not None
+                and msg.skill in WORK_SKILLS
+                and mouth.state is not None
+                and mouth.state.online
+                and self._clock() - self._last_done_comment >= DONE_COMMENT_COOLDOWN
+            ):
+                self._last_done_comment = self._clock()
+                skill, args, partner = started
+                what = f"{skill} {' '.join(str(v) for v in args.values())}".strip()
+                await self._speak(
+                    mouth,
+                    instruction=f"Você acabou de terminar: {what}. Conte em poucas palavras"
+                    + (f" para {partner}." if partner else "."),
+                    partner=partner,
+                )
             return
         self._note(f"{msg.skill} parou: {msg.reason}")
         if msg.cancelled or not (mouth.state and mouth.state.online):
@@ -354,6 +412,9 @@ class ChatBrain:
             remembered = self.memory.describe(online, self.character.username)
             if remembered:
                 feelings = f"{remembered}\n{feelings}"
+            extra = self.plugins.prompt(mouth.state)
+            if extra:
+                feelings = f"{feelings}\n{extra}"
             promises = self.will.pending()
             if promises:
                 feelings += "\n## Você prometeu fazer depois\n" + "\n".join(f"- {pr.describe()}" for pr in promises)
@@ -377,16 +438,17 @@ class ChatBrain:
             text, later = resolve_later(text, skills, partner, players)
             text = self._memory_tags(text, mouth, players)
             action = self._resolve_places(action, players)
+            action = self._give_if_asked(action, partner, skills)
             later = self._resolve_places(later, players)
             if later is not None:
                 self.will.promise(later.skill, later.args, partner)
                 self._sync_promises()
-            lines = clean_reply(text, self._names)
+            lines = [said for line in clean_reply(text, self._names) if (said := self.plugins.on_say(line))]
             if not lines and fallback and action is None:
                 lines = [fallback]
             if action is not None:
                 # Começa a andar antes de digitar: parece mais vivo.
-                await mouth.start_skill(action.skill, action.args)
+                await self._start(mouth, action.skill, action.args, partner)
             for line in lines:
                 await self._sleep(min(MAX_TYPING_DELAY, len(line) / self.typing_speed))
                 await mouth.say(line)
@@ -421,6 +483,14 @@ class ChatBrain:
                 about = [n for n in self.memory.people if re.search(rf"\b{re.escape(n)}\b", value, re.IGNORECASE)]
                 self.memory.note(value, about)
         return MEMORY_TAG.sub("", text)
+
+    def _give_if_asked(self, action, partner: str | None, skills: list[p.SkillSpec]):
+        """Pediram "me dá X" e a IA escolheu obtain/craft: troca por give (que já consegue o item antes)."""
+        if action is None or partner is None or action.skill not in ("obtain", "craft"):
+            return action
+        if not GIVE_ASKED.search(self._last_text.get(partner, "")) or not any(sk.name == "give" for sk in skills):
+            return action
+        return type(action)("give", {"player": partner, **action.args})
 
     def _resolve_places(self, action, players: list[str]):
         """[ação: goto base] → coordenadas da base, se "base" não for um player online."""

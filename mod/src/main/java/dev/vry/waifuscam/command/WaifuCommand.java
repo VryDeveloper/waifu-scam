@@ -160,6 +160,8 @@ public final class WaifuCommand {
 				.then(Commands.literal("deposit").executes(ctx ->
 						run(ctx.getSource(), mod, "deposit", new JsonObject(), "Ela vai guardar as coisas no baú.")))
 				// ---- fase 5: sobreviver ----
+				.then(Commands.literal("sleep").executes(ctx ->
+						run(ctx.getSource(), mod, "sleep", new JsonObject(), "Ela vai dormir.")))
 				.then(Commands.literal("shelter").executes(ctx ->
 						run(ctx.getSource(), mod, "shelter", new JsonObject(), "Ela vai se abrigar.")))
 				.then(Commands.literal("attack").executes(ctx ->

@@ -32,6 +32,10 @@ think_every = 180         # segundos parada até decidir sozinha o que fazer (ga
 shelter_at_night = true   # cava um abrigo quando anoitece e ela está ao ar livre
 hungry_think_every = 180  # com fome e sem comida, pensa no que fazer a cada N segundos
 
+[plugins]
+# Plugins da Mente (mind/plugins/). Ex.: enabled = ["relogio"] conta a hora do mundo real para ela.
+enabled = []
+
 [chat]
 greeting = "oi gente! cheguei"   # o que ela fala ao entrar no mundo
 proactive_interval = 60   # segundos mínimos entre falas espontâneas

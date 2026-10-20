@@ -171,6 +171,13 @@ public final class SkillRegistry {
 				"Passar a noite em segurança: cava um buraco, fecha em cima e sai de manhã (numa casa, só espera).",
 				params("{\"type\":\"object\",\"properties\":{}}"),
 				(args, server, me) -> new ShelterSkill()));
+
+		// ---- fase 7 ----
+
+		register(new Spec("sleep",
+				"Dormir na cama livre mais perto até amanhecer (só funciona de noite e sem monstro perto).",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new SleepSkill()));
 	}
 
 	private SkillRegistry() {}

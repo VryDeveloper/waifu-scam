@@ -65,6 +65,12 @@ public final class Controls {
 	}
 
 	public void applyTo(ServerPlayer player) {
+		if (player.isSleeping()) {
+			player.zza = 0;
+			player.xxa = 0;
+			player.setJumping(false);
+			return;
+		}
 		if (lookAt != null && player.getEyePosition().distanceToSqr(lookAt) > 1.0E-4) {
 			player.lookAt(EntityAnchorArgument.Anchor.EYES, lookAt);
 		}

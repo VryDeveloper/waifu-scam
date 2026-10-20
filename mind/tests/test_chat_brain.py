@@ -251,3 +251,14 @@ def test_situation_lists_inventory():
     text = describe_situation(state, "Lumi")
     assert "Seu inventário: 12 oak_log, 1 stone_pickaxe" in text and "Na mão: stone_pickaxe" in text
     assert "inventário está vazio" in describe_situation(p.State(online=True, inventory={}), "Lumi")
+
+
+async def test_me_da_becomes_give(lumi):
+    mouth = FakeMouth()
+    b = brain(lumi, FakeLLM("vou pegar as tochas\n[ação: obtain torch 4]"))
+    await b.on_event(mouth, chat("Vry", "lumi me dá 4 tochas"))
+    assert mouth.started == [("give", {"player": "Vry", "item": "torch", "count": 4})]
+    mouth2 = FakeMouth()
+    b2 = brain(lumi, FakeLLM("bora\n[ação: obtain torch 4]"))
+    await b2.on_event(mouth2, chat("Vry", "lumi faz 4 tochas"))
+    assert mouth2.started == [("obtain", {"item": "torch", "count": 4})]

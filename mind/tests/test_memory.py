@@ -183,3 +183,27 @@ async def test_remember_command_from_the_game(lumi, tmp_path):
     )
     await b.on_event(FakeMouth(), event)
     assert m.place("mina").coords() == "1 -40 3"
+
+
+async def test_place_is_saved_even_if_the_ai_forgets_the_tag(lumi, tmp_path):
+    m = Memory(tmp_path / "m.json")
+    mouth = FakeMouth()
+    mouth.state = here()
+    b = ChatBrain(lumi, FakeLLM("ah, já lembro desse spot"), Budget(50), clock=Clock(), sleep=no_sleep, memory=m)
+    await b.on_event(mouth, chat("Vry", "lumi, aqui é a nossa base, lembra desse lugar"))
+    assert m.place("base").coords() == "120 64 -33"
+    await b.on_event(mouth, chat("Vry", "aqui é perigoso"))
+    assert m.place("perigoso") is None
+
+
+async def test_tells_when_a_requested_job_is_done(lumi):
+    llm = FakeLLM("bora\n[ação: obtain stone_pickaxe 1]", "pronto, tá aqui sua picareta")
+    mouth = FakeMouth()
+    b = ChatBrain(lumi, llm, Budget(50), clock=Clock(), sleep=no_sleep)
+    await b.on_event(mouth, chat("Vry", "faz uma picareta?"))
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="obtain"))
+    assert mouth.said == ["bora", "pronto, tá aqui sua picareta"]
+    assert "acabou de terminar: obtain stone_pickaxe 1" in llm.calls[1][-1]["content"]
+    # habilidade que ela não começou (comando) não gera comentário
+    await b.on_skill_ended(mouth, p.SkillDone(id="cmd-7", skill="obtain"))
+    assert len(llm.calls) == 2
