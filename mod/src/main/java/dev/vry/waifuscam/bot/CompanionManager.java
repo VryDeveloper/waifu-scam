@@ -162,6 +162,18 @@ public final class CompanionManager {
 		return true;
 	}
 
+	/** Para tudo depois de um erro (habilidade e reflexo), avisando a Mente do motivo. */
+	public void abortSkill(String reason) {
+		reflexes.reset();
+		try {
+			endSkill(reason);
+		} catch (RuntimeException ignored) {
+			skill = null;
+			skillId = null;
+		}
+		controls.release();
+	}
+
 	public Skill currentSkill() {
 		return skill;
 	}

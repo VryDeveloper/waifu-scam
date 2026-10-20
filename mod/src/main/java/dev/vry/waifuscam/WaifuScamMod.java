@@ -115,13 +115,23 @@ public final class WaifuScamMod implements ModInitializer {
 		if (companions == null) {
 			return;
 		}
-		companions.tick();
-		int tick = server.getTickCount();
-		if (tick % 20 == 0) {
-			maybeAutoJoin();
+		// Um bug numa habilidade nunca pode derrubar o mundo de quem está jogando.
+		try {
+			companions.tick();
+		} catch (RuntimeException e) {
+			LOGGER.error("Erro no tick da personagem; a habilidade atual foi parada.", e);
+			companions.abortSkill("deu um erro aqui dentro: " + e.getClass().getSimpleName());
 		}
-		if (tick % 40 == 0) {
-			sendState();
+		int tick = server.getTickCount();
+		try {
+			if (tick % 20 == 0) {
+				maybeAutoJoin();
+			}
+			if (tick % 40 == 0) {
+				sendState();
+			}
+		} catch (RuntimeException e) {
+			LOGGER.error("Erro mandando o estado para a Mente", e);
 		}
 	}
 
@@ -276,6 +286,9 @@ public final class WaifuScamMod implements ModInitializer {
 				c.startSkill(id, SkillRegistry.create(name, args, server, me));
 			} catch (SkillRegistry.SkillException e) {
 				error = e.getMessage();
+			} catch (RuntimeException e) {
+				LOGGER.warn("Pedido de habilidade inválido: {} {}", name, args, e);
+				error = "não entendi o pedido";
 			}
 		}
 		if (error != null) {

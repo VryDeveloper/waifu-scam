@@ -199,7 +199,7 @@
       ]
     },
     "event": {
-      "description": "Corpo → Mente. Algo aconteceu no jogo. chat traz 'from' e 'text'; died e despawned trazem 'message'.",
+      "description": "Corpo → Mente. Algo aconteceu no jogo. chat traz 'from' e 'text'; died e despawned trazem 'message'; danger traz o tipo do bicho em 'message' (fase 5); remember_place traz name, x, y, z, dimension e from (fase 6).",
       "properties": {
         "type": {
           "const": "event"
@@ -211,7 +211,9 @@
             "spawned",
             "despawned",
             "died",
-            "respawned"
+            "respawned",
+            "danger",
+            "remember_place"
           ]
         }
       },
@@ -314,6 +316,55 @@
               ]
             }
           }
+        },
+        "inventory": {
+          "type": "object",
+          "description": "Fase 4: até 20 itens que ela mais tem, {\"oak_log\": 12}.",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "holding": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Fase 4: item na mão."
+        },
+        "threats": {
+          "type": "array",
+          "description": "Fase 5: monstros por perto.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "distance": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "sky": {
+          "type": "boolean",
+          "description": "Fase 5: ao ar livre."
+        },
+        "light": {
+          "type": "integer"
+        },
+        "in_water": {
+          "type": "boolean"
+        },
+        "on_fire": {
+          "type": "boolean"
+        },
+        "air": {
+          "type": "integer"
+        },
+        "reflex": {
+          "type": "string",
+          "description": "Fase 5: o que o reflexo está fazendo agora (ex.: comendo)."
         }
       },
       "required": [
