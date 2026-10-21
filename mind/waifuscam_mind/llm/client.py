@@ -33,13 +33,15 @@ class AllProvidersFailed(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, providers: list[Provider], *, temperature: float = 0.9, timeout: float = 30):
+    def __init__(self, providers: list[Provider], *, temperature: float = 0.9, timeout: float = 20):
         if not providers:
             raise ValueError("Nenhum provedor de IA configurado. Coloque pelo menos uma chave no .env.")
         self.providers = providers
         self.temperature = temperature
         self._clients = {
-            p.name: AsyncOpenAI(api_key=p.api_key, base_url=p.base_url, timeout=timeout) for p in providers
+            # Sem novas tentativas escondidas do SDK: quem decide tentar outro modelo é este cliente.
+            p.name: AsyncOpenAI(api_key=p.api_key, base_url=p.base_url, timeout=timeout, max_retries=0)
+            for p in providers
         }
         self._cooldown_until: dict[str, float] = {}
 

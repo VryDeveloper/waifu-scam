@@ -51,12 +51,9 @@ PRESETS: dict[str, Preset] = {
         "openai/gpt-oss-20b",
         ("qwen/qwen3.8-27b", "openai/gpt-oss-20b"),
     ),
-    "gemini": Preset(
-        "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "gemini-flash-latest",
-        "gemini-flash-lite-latest",
-        ("gemini-flash-lite-latest",),
-    ),
+    # flash-lite: responde em menos de 1 s e tem a maior cota grátis. O flash "normal"
+    # pensa antes de responder (às vezes passa de 60 s) e a cota grátis dele acaba rápido.
+    "gemini": Preset("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-flash-lite-latest"),
     "openrouter": Preset("https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free"),
     # Qualquer servidor compatível com a API da OpenAI (Ollama, LM Studio...): CUSTOM_BASE_URL
     "custom": Preset("", ""),
