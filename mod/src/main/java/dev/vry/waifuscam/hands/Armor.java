@@ -9,11 +9,45 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.equipment.Equippable;
 
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /** Vestir a melhor armadura que tiver, e escudo na outra mão. */
 public final class Armor {
 	private static final EquipmentSlot[] SLOTS = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 
+	/** Peças que pediram para ela tirar: não veste de novo sozinha até pedirem (equip). */
+	private static final Map<UUID, Set<EquipmentSlot>> KEPT_OFF = new ConcurrentHashMap<>();
+
 	private Armor() {}
+
+	public static boolean keptOff(ServerPlayer me, EquipmentSlot slot) {
+		Set<EquipmentSlot> off = KEPT_OFF.get(me.getUUID());
+		return off != null && off.contains(slot);
+	}
+
+	public static void keepOff(ServerPlayer me, Set<EquipmentSlot> slots) {
+		KEPT_OFF.computeIfAbsent(me.getUUID(), k -> EnumSet.noneOf(EquipmentSlot.class)).addAll(slots);
+	}
+
+	public static void allow(ServerPlayer me, Set<EquipmentSlot> slots) {
+		Set<EquipmentSlot> off = KEPT_OFF.get(me.getUUID());
+		if (off != null) {
+			off.removeAll(slots);
+		}
+	}
+
+	public static boolean keepingAnyOff(ServerPlayer me) {
+		Set<EquipmentSlot> off = KEPT_OFF.get(me.getUUID());
+		return off != null && !off.isEmpty();
+	}
+
+	public static EquipmentSlot[] armorSlots() {
+		return SLOTS.clone();
+	}
 
 	/** Pontos de armadura (mais um pouco de dureza) que a peça dá naquele slot. */
 	static double score(ItemStack stack, EquipmentSlot slot) {
@@ -40,6 +74,9 @@ public final class Armor {
 		Inventory inv = me.getInventory();
 		boolean changed = false;
 		for (EquipmentSlot slot : SLOTS) {
+			if (keptOff(me, slot)) {
+				continue;
+			}
 			ItemStack worn = me.getItemBySlot(slot);
 			double best = score(worn, slot);
 			int bestSlot = -1;
@@ -63,7 +100,7 @@ public final class Armor {
 			}
 		}
 		// Escudo na mão de fora, se ela tiver um e a mão estiver livre.
-		if (me.getOffhandItem().isEmpty()) {
+		if (me.getOffhandItem().isEmpty() && !keptOff(me, EquipmentSlot.OFFHAND)) {
 			int shield = Stacks.find(inv, s -> s.is(Items.SHIELD));
 			if (shield >= 0) {
 				me.setItemSlot(EquipmentSlot.OFFHAND, inv.getItem(shield).copy());

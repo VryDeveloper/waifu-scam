@@ -51,7 +51,7 @@ public final class GiveSkill implements Skill {
 		}
 		Inventory inv = ctx.player().getInventory();
 		if (!obtained) {
-			if (Stacks.count(inv, items.items()) >= count) {
+			if (Stacks.countWithWorn(ctx.player(), s -> items.accepts(Stacks.id(s))) >= count) {
 				obtained = true;
 				child = null;
 			} else {
@@ -79,16 +79,12 @@ public final class GiveSkill implements Skill {
 		}
 		// Do lado dele: olha e joga os itens.
 		ctx.player().lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, target.getEyePosition());
+		// Do inventário primeiro; se for o que ela está vestindo (armadura, escudo), tira e dá.
 		int left = count;
-		for (int i = 0; i < Stacks.MAIN_SLOTS && left > 0; i++) {
-			ItemStack s = inv.getItem(i);
-			if (!s.isEmpty() && items.accepts(Stacks.id(s))) {
-				ItemStack thrown = s.split(Math.min(left, s.getCount()));
-				left -= thrown.getCount();
-				ctx.player().drop(thrown, false, Prediction.SERVER_ONLY);
-			}
+		for (ItemStack thrown : Stacks.takeWithWorn(ctx.player(), s -> items.accepts(Stacks.id(s)), count)) {
+			left -= thrown.getCount();
+			ctx.player().drop(thrown, false, Prediction.SERVER_ONLY);
 		}
-		inv.setChanged();
 		return left == 0 ? Status.SUCCEEDED : fail("só tinha " + (count - left));
 	}
 

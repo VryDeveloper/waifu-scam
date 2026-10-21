@@ -139,6 +139,9 @@ CHAT_RULES = """
   consegue. A ação só começa quando você coloca a linha; nunca diga que já fez ou terminou: o corpo avisa.
 - Você decide: topa (coloque a ação), adia ([depois: ...] e diga quando) ou recusa. Adie se tiver algo urgente.
 - "Faz comida", "cozinha", "assa a carne" = cook. "Me ajuda a minerar" = mine_ores.
+- O que você está vestindo também é seu para dar: "me dá sua armadura" = [ação: give #armor]; "me dá seu escudo" =
+  [ação: give shield 1]. "Tira a armadura" (sem dar) = [ação: unequip armor] (ou helmet, chestplate, leggings, boots,
+  shield, all); depois disso você não veste sozinha até pedirem: "veste de novo" = [ação: equip].
 - "Me dá/passa X" = give. Pedido grande ("faz uma picareta de pedra") é uma ação só.
   Pedido em partes: uma linha [ação: ...] para cada parte, na ordem; você faz uma depois da outra.
   Ex.: "faz uma fornalha e coloca no chão" = [ação: obtain furnace 1] e depois [ação: place furnace].
@@ -208,6 +211,11 @@ def describe_situation(state: p.State | None, me: str) -> str:
             lines.append(f"- Comida crua que dá para assar (ação cook): {', '.join(raw)}")
     if s.get("holding"):
         lines.append(f"- Na mão: {s['holding']}")
+    wearing = s.get("wearing")
+    if isinstance(wearing, list):
+        lines.append(f"- Vestindo: {', '.join(wearing)}" if wearing else "- Você não está vestindo armadura.")
+        if s.get("armor_off"):
+            lines.append("- Tiraram parte da sua armadura a pedido; só veste de novo se pedirem (equip).")
     doing = (s.get("skill") or {}).get("doing") if isinstance(s.get("skill"), dict) else None
     lines.append(f"- Agora você está: {doing}" if doing else "- Agora você está parada, sem fazer nada.")
     if s.get("reflex"):
@@ -938,6 +946,8 @@ class ChatBrain:
         if action is None or "item" not in action.args:
             return action
         raw = str(action.args["item"])
+        if action.skill == "give" and raw.lower() in ("armor", "armadura", "sua_armadura", "minha_armadura"):
+            return type(action)(action.skill, {**action.args, "item": "#armor"})  # o que ela está vestindo
         if raw.startswith("#") or raw in self.items.names:
             return action
         if raw.startswith("raw_") and raw[4:] in self.items.names:

@@ -349,3 +349,18 @@ def test_raw_meat_name_is_fixed(lumi):
 def test_situation_points_out_raw_food():
     st = p.State(online=True, players=["Lumi"], inventory={"porkchop": 14, "dirt": 3})
     assert "Comida crua que dá para assar (ação cook): 14 porkchop" in describe_situation(st, "Lumi")
+
+
+def test_give_armor_means_what_she_wears(lumi):
+    from waifuscam_mind.brain.actions import Action
+
+    b = brain(lumi, FakeLLM())
+    assert b._item_ids(Action("give", {"player": "Vry", "item": "armadura"})).args["item"] == "#armor"
+
+
+def test_situation_says_what_she_wears():
+    st = p.State(online=True, players=["Lumi"], wearing=["iron_chestplate", "shield"], armor_off=True)
+    text = describe_situation(st, "Lumi")
+    assert "Vestindo: iron_chestplate, shield" in text
+    assert "só veste de novo se pedirem" in text
+    assert "não está vestindo" in describe_situation(p.State(online=True, wearing=[]), "Lumi")

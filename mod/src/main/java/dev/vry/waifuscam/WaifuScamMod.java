@@ -244,19 +244,21 @@ public final class WaifuScamMod implements ModInitializer {
 
 			// Inventário (fase 4): os 20 itens que ela mais tem e o que está na mão.
 			JsonObject inventory = new JsonObject();
-			// Tudo que ela tem (cabe em 41 tipos), inclusive o que está vestindo: a Vontade
-			// decide o que falta olhando isso, então não pode cortar a picareta de 1 unidade.
+			// Tudo que ela tem, inclusive o que está vestindo (o inventário do jogo já conta
+			// armadura e mão de fora): a Vontade decide o que falta olhando isso.
 			java.util.Map<String, Integer> all = new java.util.LinkedHashMap<>(Stacks.summary(p.getInventory(), 64));
-			for (var slot : new net.minecraft.world.entity.EquipmentSlot[] {net.minecraft.world.entity.EquipmentSlot.HEAD,
-					net.minecraft.world.entity.EquipmentSlot.CHEST, net.minecraft.world.entity.EquipmentSlot.LEGS,
-					net.minecraft.world.entity.EquipmentSlot.FEET}) {
-				var worn = p.getItemBySlot(slot);
-				if (!worn.isEmpty()) {
-					all.merge(Stacks.id(worn).replace("minecraft:", ""), worn.getCount(), Integer::sum);
-				}
-			}
 			all.forEach(inventory::addProperty);
 			s.add("inventory", inventory);
+			// O que está vestindo (fase 17), para ela saber o que pode tirar ou entregar.
+			JsonArray wearing = new JsonArray();
+			for (var slot : Stacks.WORN) {
+				var worn = p.getItemBySlot(slot);
+				if (!worn.isEmpty()) {
+					wearing.add(Stacks.id(worn).replace("minecraft:", ""));
+				}
+			}
+			s.add("wearing", wearing);
+			s.addProperty("armor_off", dev.vry.waifuscam.hands.Armor.keepingAnyOff(p));
 			s.addProperty("holding", p.getMainHandItem().isEmpty() ? null : Stacks.id(p.getMainHandItem()).replace("minecraft:", ""));
 			// Sobrevivência (fase 5): perigo por perto, céu, luz, o que o reflexo está fazendo.
 			JsonArray threats = new JsonArray();

@@ -127,6 +127,7 @@ Copie `mod/build/libs/waifuscam-0.7.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu reflexes on\|off` | Liga ou desliga os reflexos (fugir, revidar, comer sozinha) |
 | `/waifu autonomy on\|off` | Liga ou desliga o que ela faz por conta própria (objetivos, ideias soltas). Fica salvo; o abrigo da noite continua |
 | `/waifu emote <nome>` | Ela faz uma expressão: hearts, wave, jump, nod, shake, shy, spin, crouch, sit, stand, happy, music |
+| `/waifu unequip [peça]` / `/waifu equip` | Ela tira a armadura (ou uma peça, ou o escudo) e guarda / veste de novo |
 | `/waifu mount` / `/waifu dismount` | Ela sobe (no seu barco, se tiver lugar) / desce |
 | `/waifu fish` | Ela pesca |
 | `/waifu breed <bicho>` / `/waifu tame <bicho>` | Ela alimenta para ter filhote / domestica para você |
@@ -227,6 +228,7 @@ waifu-scam/
 | 14 · Momentos juntos 🧪 | Agacha de volta, vem ficar pertinho, traz flor, dorme quando você dorme, lembra datas e momentos | Ela te dá uma flor sem você pedir |
 | 15 · Expressões 🧪 | Corações, acenar, pular, sim/não com a cabeça, tímida, girar, sentar do seu lado — sem mod no cliente | Ela senta do seu lado quando você para |
 | 16 · Montarias e bichos 🧪 | Barco, carrinho e cavalo (de carona ou conduzindo), alimentar e domesticar bichos, pescar, boiar na água, pedidos em partes | "Faz a fornalha e coloca no chão" faz as duas coisas |
+| 17 · Tirar e entregar 🧪 | Ela dá o que está vestindo (armadura, escudo), tira peças e só veste de novo quando você pede | "Me dá sua armadura" tira e entrega, sem craftar outra |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

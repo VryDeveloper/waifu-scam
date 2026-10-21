@@ -156,6 +156,18 @@ Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
 | 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
 | 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
 
+## Fase 17 — Tirar e entregar o que está vestindo
+
+| # | Faça | Esperado |
+|---|---|---|
+| 17.1 | Com ela de armadura: `lumi me dá sua armadura` | Ela vem até você, tira as peças e joga para você (não faz uma nova) |
+| 17.2 | `lumi me dá seu escudo` / `lumi me passa seu capacete` | Ela tira só aquela peça e te entrega |
+| 17.3 | `lumi tira a armadura` (ou `/waifu unequip`) | As peças vão para o inventário dela e ela fica sem |
+| 17.4 | Depois do 17.3, espere uns segundos | Ela não veste de novo sozinha |
+| 17.5 | `lumi veste a armadura de novo` (ou `/waifu equip`) | Ela veste a melhor que tiver, e o escudo |
+| 17.6 | `/waifu unequip shield` | Só o escudo sai |
+| 17.7 | Dê para ela uma picareta melhor e peça `lumi me dá sua picareta de madeira` | Ela usa a melhor e te devolve a de madeira |
+
 ## Fase 16 — Montarias, bichos, pesca e pedidos em partes
 
 | # | Faça | Esperado |

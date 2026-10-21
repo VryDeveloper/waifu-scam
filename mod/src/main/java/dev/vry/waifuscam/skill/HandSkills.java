@@ -145,7 +145,7 @@ public final class HandSkills {
 		public Status tick(SkillContext ctx) {
 			ServerPlayer me = ctx.player();
 			Inventory inv = me.getInventory();
-			if (Stacks.count(inv, item.items()) == 0) {
+			if (Stacks.countWithWorn(me, s -> item.accepts(Stacks.id(s))) == 0) {
 				return fail("não tenho " + label);
 			}
 			// Olha um pouco para baixo, na frente dela, e joga.
@@ -154,16 +154,9 @@ public final class HandSkills {
 			if (wait-- > 0) {
 				return Status.RUNNING;
 			}
-			int left = count;
-			for (int i = 0; i < Stacks.MAIN_SLOTS && left > 0; i++) {
-				ItemStack s = inv.getItem(i);
-				if (!s.isEmpty() && item.accepts(Stacks.id(s))) {
-					ItemStack thrown = s.split(Math.min(left, s.getCount()));
-					left -= thrown.getCount();
-					me.drop(thrown, false, Prediction.SERVER_ONLY);
-				}
+			for (ItemStack thrown : Stacks.takeWithWorn(me, s -> item.accepts(Stacks.id(s)), count)) {
+				me.drop(thrown, false, Prediction.SERVER_ONLY);
 			}
-			inv.setChanged();
 			me.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
 			return Status.SUCCEEDED;
 		}

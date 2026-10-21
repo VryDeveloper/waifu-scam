@@ -120,6 +120,10 @@ Evento novo do Corpo: `event` `crouch` (`from`) quando um player agacha e levant
 
 Mensagem nova da Mente: `emote` (`name`, `to` opcional) — `hearts`, `wave`, `jump`, `nod`, `shake`, `shy`, `spin`, `crouch`, `sit`, `stand`, `happy`, `music` (ou os nomes em português: corações, acenar, sentar...). O `state` ganha `sitting`.
 
+## Fase 17: o que ela veste
+
+`state` ganha `wearing` (lista com as peças vestidas e o item da mão de fora) e `armor_off` (true quando pediram para ela tirar alguma peça e ela está sem vestir de propósito). O `inventory` já contava a armadura e a mão de fora; agora conta uma vez só. Habilidades novas: `unequip` (`what`) e `equip` (`what`); `give` com `item` = `#armor` entrega a armadura que ela está vestindo, e `give`/`drop` de qualquer item também tiram do que está vestindo quando não tem sobrando no inventário.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

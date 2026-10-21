@@ -129,7 +129,34 @@ public final class SkillRegistry {
 		register(new Spec("give",
 				"Entregar itens para um player (consegue antes, se não tiver). Use quando pedirem 'me dá' ou 'me passa'.",
 				params("{\"type\":\"object\",\"properties\":{" + PLAYER + "," + ITEM + "," + COUNT + "},\"required\":[\"player\",\"item\"]}"),
-				(args, server, me) -> new GiveSkill(player(server, args), choice(args), count(args), label(args))));
+				(args, server, me) -> {
+					String raw = args.has("item") ? args.get("item").getAsString().toLowerCase().replace("minecraft:", "") : "";
+					if (raw.equals("#armor") || raw.equals("armor") || raw.equals("armadura")) {
+						// "me dá sua armadura": as peças que ela está vestindo agora.
+						List<String> worn = new java.util.ArrayList<>();
+						for (var slot : dev.vry.waifuscam.hands.Armor.armorSlots()) {
+							var s = me.getItemBySlot(slot);
+							if (!s.isEmpty()) {
+								worn.add(Stacks.id(s));
+							}
+						}
+						if (worn.isEmpty()) {
+							throw new SkillException("não estou vestindo armadura");
+						}
+						return new GiveSkill(player(server, args), new Choice(worn), worn.size(), "a armadura");
+					}
+					return new GiveSkill(player(server, args), choice(args), count(args), label(args));
+				}));
+
+		register(new Spec("unequip",
+				"Tirar armadura ou escudo e guardar no inventário (ela não veste de novo sozinha até pedirem). what: armor (padrão), all, helmet, chestplate, leggings, boots, shield ou o id da peça.",
+				params("{\"type\":\"object\",\"properties\":{\"what\":{\"type\":\"string\",\"description\":\"armor, all, helmet, chestplate, leggings, boots, shield ou o id da peça\"}}}"),
+				(args, server, me) -> new EquipSkill(false, args.has("what") ? args.get("what").getAsString() : null)));
+
+		register(new Spec("equip",
+				"Vestir de novo a armadura e o escudo (a melhor que tiver), ou uma peça específica do inventário.",
+				params("{\"type\":\"object\",\"properties\":{\"what\":{\"type\":\"string\",\"description\":\"vazio = tudo; ou o id da peça\"}}}"),
+				(args, server, me) -> new EquipSkill(true, args.has("what") ? args.get("what").getAsString() : null)));
 
 		register(new Spec("deposit",
 				"Guardar itens no baú mais perto. Sem item, guarda tudo menos ferramentas, armas, armadura e comida.",

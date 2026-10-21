@@ -193,6 +193,17 @@ public final class WaifuCommand {
 				}))
 				.then(Commands.literal("dismount").executes(ctx ->
 						run(ctx.getSource(), mod, "dismount", new JsonObject(), "Ela vai descer.")))
+				.then(Commands.literal("unequip")
+						.executes(ctx -> run(ctx.getSource(), mod, "unequip", new JsonObject(), "Ela vai tirar a armadura."))
+						.then(Commands.argument("what", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[] {"armor", "all", "helmet", "chestplate", "leggings", "boots", "shield"}, builder))
+								.executes(ctx -> {
+									JsonObject args = new JsonObject();
+									args.addProperty("what", StringArgumentType.getString(ctx, "what"));
+									return run(ctx.getSource(), mod, "unequip", args, "Ela vai tirar.");
+								})))
+				.then(Commands.literal("equip").executes(ctx ->
+						run(ctx.getSource(), mod, "equip", new JsonObject(), "Ela vai vestir de novo.")))
 				.then(Commands.literal("fish").executes(ctx ->
 						run(ctx.getSource(), mod, "fish", new JsonObject(), "Ela vai pescar.")))
 				.then(Commands.literal("breed")

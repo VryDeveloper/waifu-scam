@@ -4,7 +4,9 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -165,6 +167,53 @@ public final class Stacks {
 			}
 		}
 		return -1;
+	}
+
+	/** O que ela pode estar vestindo: armadura e a mão de fora (escudo). */
+	public static final EquipmentSlot[] WORN = {EquipmentSlot.OFFHAND, EquipmentSlot.FEET, EquipmentSlot.LEGS,
+			EquipmentSlot.HEAD, EquipmentSlot.CHEST};
+
+	/** Conta no inventário e no que está vestindo (a armadura também é dela para dar). */
+	public static int countWithWorn(ServerPlayer me, Predicate<ItemStack> filter) {
+		int n = count(me.getInventory(), filter);
+		for (EquipmentSlot slot : WORN) {
+			ItemStack s = me.getItemBySlot(slot);
+			if (!s.isEmpty() && filter.test(s)) {
+				n += s.getCount();
+			}
+		}
+		return n;
+	}
+
+	/**
+	 * Tira até n itens para entregar: primeiro do inventário (a peça sobrando),
+	 * depois do que está vestindo.
+	 */
+	public static List<ItemStack> takeWithWorn(ServerPlayer me, Predicate<ItemStack> filter, int n) {
+		List<ItemStack> out = new ArrayList<>();
+		Inventory inv = me.getInventory();
+		int left = n;
+		for (int i = 0; i < MAIN_SLOTS && left > 0; i++) {
+			ItemStack s = inv.getItem(i);
+			if (!s.isEmpty() && filter.test(s)) {
+				ItemStack part = s.split(Math.min(left, s.getCount()));
+				left -= part.getCount();
+				out.add(part);
+			}
+		}
+		for (EquipmentSlot slot : WORN) {
+			ItemStack s = me.getItemBySlot(slot);
+			if (left > 0 && !s.isEmpty() && filter.test(s)) {
+				ItemStack part = s.split(Math.min(left, s.getCount()));
+				left -= part.getCount();
+				out.add(part);
+				if (s.isEmpty()) {
+					me.setItemSlot(slot, ItemStack.EMPTY);
+				}
+			}
+		}
+		inv.setChanged();
+		return out;
 	}
 
 	/** Tira n itens que passam no filtro. Devolve quantos tirou. */

@@ -74,7 +74,7 @@ public final class Queries {
 		Planner.World world = world(me);
 		out.addProperty("item", item.replace("minecraft:", ""));
 		out.addProperty("count", count);
-		out.addProperty("have", Stacks.count(me.getInventory(), items));
+		out.addProperty("have", Stacks.countWithWorn(me, st -> items.contains(Stacks.id(st))));
 		out.addProperty("table_nearby", world.tableNearby());
 		out.addProperty("furnace_nearby", world.furnaceNearby());
 		JsonObject recipe = recipe(k, item);
