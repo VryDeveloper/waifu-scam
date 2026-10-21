@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Baú e horta (fase 10)
+
+O planejador também sabe o que tem nos baús e barris a até 16 blocos (`use_chests`): pegar do baú é o passo mais barato, então ela usa o ferro guardado antes de ir minerar. Plantação madura (trigo, cenoura, batata, beterraba) é fonte de comida e de trigo; ela nunca colhe o que está verde e replanta na hora. A habilidade `farm` cuida da horta inteira e, com enxada e sementes, ara terra perto da água. Quando ela vê uma plantação, cuidar dela entra nos objetivos próprios, no máximo a cada 20 minutos.
+
 ## Como ela enxerga (fase 8)
 
 Uma vez por segundo, `bot/Eyes` lança 117 raios num cone de ~110° × 76° para onde a cabeça dela está virada, até 48 blocos (com um tremidinho a cada olhar, para cobrir o campo inteiro com o tempo). Ela só vê o que tem linha de visão: minério atrás da pedra continua escondido, água é transparente, e no escuro ela só reconhece o que está a até 4 blocos. Bichos, players e itens no chão entram se estiverem no cone e à vista.

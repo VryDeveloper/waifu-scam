@@ -37,6 +37,7 @@ class Goal:
     args: dict
     why: str  # para a IA anunciar ("quero uma picareta de pedra")
     need: str  # necessidade que ele atende (hunger, safety, progress...)
+    cooldown: float = 0.0  # depois de cumprido, espera isso (s) antes de repetir (cuidar da horta)
 
 
 def _has(inv: dict, names: tuple[str, ...] | str, n: int = 1) -> bool:
@@ -47,6 +48,14 @@ def _has(inv: dict, names: tuple[str, ...] | str, n: int = 1) -> bool:
 
 def _food_count(inv: dict) -> int:
     return sum(int(v) for k, v in inv.items() if k in FOODS)
+
+
+CROPS = {"wheat", "carrots", "potatoes", "beetroots"}
+
+
+def _sees_crops(state: dict) -> bool:
+    seeing = state.get("seeing") if isinstance(state.get("seeing"), dict) else {}
+    return any(isinstance(b, dict) and b.get("block") in CROPS for b in seeing.get("blocks") or [])
 
 
 def candidates(state: dict) -> list[Goal]:
@@ -109,6 +118,8 @@ def candidates(state: dict) -> list[Goal]:
             goals.append(
                 Goal(f"stock:{cooked}", "obtain", {"item": cooked, "count": 5}, "guardar comida para depois", "hunger")
             )
+    if _sees_crops(state):
+        goals.append(Goal("farm", "farm", {}, "cuidar da plantação", "hunger", cooldown=20 * 60))
     if not _has(inv, "furnace"):
         goals.append(Goal("furnace", "obtain", {"item": "furnace", "count": 1}, "fazer uma fornalha", "progress"))
     if not _has(inv, "torch", 8):

@@ -14,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -57,6 +58,7 @@ public final class CollectSkill implements Skill {
 	private int recalls;
 	private BlockPos recallPos;
 	private final Set<BlockPos> visitedMemories = new HashSet<>();
+	private Item replant;
 
 	private Phase phase = Phase.SEARCH;
 	private final Set<BlockPos> unreachable = new HashSet<>();
@@ -192,6 +194,8 @@ public final class CollectSkill implements Skill {
 	}
 
 	private void startDigging(SkillContext ctx, BlockPos pos) {
+		BlockState s = ctx.level().getBlockState(pos);
+		replant = s.getBlock() instanceof net.minecraft.world.level.block.CropBlock ? s.getBlock().asItem() : null;
 		digger = new Digger(ctx.level(), pos);
 		phase = Phase.DIG;
 		walk = null;
@@ -207,7 +211,8 @@ public final class CollectSkill implements Skill {
 		if (s.getDestroySpeed(level, p) < 0) {
 			return false; // inquebrável
 		}
-		return true;
+		// Plantação verde não se colhe.
+		return !(s.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop) || crop.isMaxAge(s);
 	}
 
 	private void search(SkillContext ctx) {
@@ -293,6 +298,7 @@ public final class CollectSkill implements Skill {
 		List<ItemEntity> drops = ctx.level().getEntitiesOfClass(ItemEntity.class, new AABB(around).inflate(5),
 				e -> e.isAlive() && !e.getItem().isEmpty());
 		if (drops.isEmpty() || pickupTicks > 20 * 8) {
+			replant(ctx);
 			phase = Phase.PAUSE; // respira antes do próximo bloco
 			pauseTicks = Human.pause();
 			walk = null;
@@ -309,6 +315,20 @@ public final class CollectSkill implements Skill {
 			next.setPickUpDelay(0);
 			phase = Phase.SEARCH; // não dá para chegar: deixa para lá
 			walk = null;
+		}
+	}
+
+	/** Colheu plantação: planta a semente de volta, como um player faz. */
+	private void replant(SkillContext ctx) {
+		ServerLevel level = ctx.level();
+		if (replant == null || lastBroken == null || !level.getBlockState(lastBroken).isAir()
+				|| !level.getBlockState(lastBroken.below()).is(net.minecraft.world.level.block.Blocks.FARMLAND)) {
+			return;
+		}
+		Item seed = replant;
+		replant = null;
+		if (Stacks.find(ctx.player().getInventory(), st -> st.is(seed)) >= 0) {
+			dev.vry.waifuscam.hands.Placer.place(ctx.player(), seed, lastBroken);
 		}
 	}
 

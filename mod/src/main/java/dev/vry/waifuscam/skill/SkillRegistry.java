@@ -143,6 +143,11 @@ public final class SkillRegistry {
 				params("{\"type\":\"object\",\"properties\":{" + ITEM + "," + COUNT + "},\"required\":[\"item\"]}"),
 				(args, server, me) -> new ChestSkill(ChestSkill.Mode.WITHDRAW, choice(args), count(args), label(args))));
 
+		register(new Spec("farm",
+				"Cuidar da plantação por perto: colhe o que está maduro, replanta e, com enxada e sementes, ara terra perto da água e planta.",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new FarmSkill()));
+
 		// ---- fase 5: sobreviver ----
 
 		register(new Spec("hunt",

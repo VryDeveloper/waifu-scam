@@ -224,3 +224,24 @@ async def test_stay_here_pauses_own_goals(lumi):
     clock.t += 200
     await b.on_state(mouth, state(inventory={"dirt": 1}))
     assert mouth.started and mouth.started[0][0] == "obtain"
+
+
+# ---- fase 10: plantação -------------------------------------------------------------
+
+FARM = p.SkillSpec(name="farm", description="Cuidar da plantação.", params={"type": "object", "properties": {}})
+CROPS_IN_VIEW = {"blocks": [{"block": "wheat", "distance": 5.0, "dir": "na frente", "count": 9}]}
+GEARED = {"stone_pickaxe": 1, "stone_sword": 1, "stone_axe": 1, "crafting_table": 1, "bread": 6}
+
+
+async def test_tends_the_farm_it_sees_then_waits(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    mouth.skills = [*mouth.skills, FARM]
+    b = make(lumi, FakeLLM(), clock)
+    clock.t += 20
+    await b.on_state(mouth, state(inventory=GEARED, seeing=CROPS_IN_VIEW))
+    assert mouth.started[-1] == ("farm", {})
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="farm"))
+    clock.t += 20
+    await b.on_state(mouth, state(inventory=GEARED, seeing=CROPS_IN_VIEW))
+    assert mouth.started[-1][0] != "farm"  # acabou de cuidar: só daqui a 20 min

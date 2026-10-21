@@ -93,6 +93,7 @@ public final class ObtainSkill implements Skill {
 
 	private static Skill toSkill(Plan plan, Step step, GameKnowledge knowledge) {
 		return switch (step) {
+			case Planner.Withdraw w -> new ChestSkill(ChestSkill.Mode.WITHDRAW, Choice.of(w.item()), w.count(), Names.pretty(w.item()));
 			case Gather g -> {
 				// Junta as coletas da mesma fonte numa ida só (3 troncos de uma vez, não 1+1+1).
 				int total = 0;

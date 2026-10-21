@@ -336,6 +336,10 @@ public final class WaifuScamMod implements ModInitializer {
 		return companions;
 	}
 
+	public ModConfig config() {
+		return config;
+	}
+
 	public boolean isMindConnected() {
 		return mind != null && mind.isConnected();
 	}

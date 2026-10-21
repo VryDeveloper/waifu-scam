@@ -87,7 +87,8 @@ public final class Eyes {
 				|| b.equals("budding_amethyst") || b.equals("amethyst_cluster") || b.equals("nether_portal")
 				|| b.equals("end_portal_frame") || b.equals("enchanting_table") || b.equals("anvil")
 				|| b.equals("beehive") || b.equals("bee_nest") || b.equals("melon") || b.equals("pumpkin")
-				|| b.equals("sugar_cane") || b.endsWith("wheat");
+				|| b.equals("sugar_cane") || b.equals("wheat") || b.equals("carrots") || b.equals("potatoes")
+				|| b.equals("beetroots");
 	}
 
 	/** Dos notados, o que vale lembrar onde fica. */
@@ -97,7 +98,8 @@ public final class Eyes {
 				|| b.equals("spawner") || b.equals("trial_spawner") || b.equals("bell") || b.equals("obsidian")
 				|| b.equals("budding_amethyst") || b.equals("nether_portal") || b.equals("end_portal_frame")
 				|| b.equals("enchanting_table") || b.equals("melon") || b.equals("pumpkin") || b.equals("sugar_cane")
-				|| b.equals("bee_nest");
+				|| b.equals("bee_nest") || b.equals("wheat") || b.equals("carrots") || b.equals("potatoes")
+				|| b.equals("beetroots");
 	}
 
 	/** Achado que dá vontade de comentar. */

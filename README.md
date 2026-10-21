@@ -100,6 +100,7 @@ Copie `mod/build/libs/waifuscam-0.7.0.jar` e o jar da Fabric API para a pasta `m
 | `mind_url` | `ws://127.0.0.1:8765` | Onde está a Mente |
 | `reconnect_seconds` | `5` | Intervalo entre tentativas de reconexão |
 | `join_on` | `lan` | Quando ela entra: `lan` (ao abrir a LAN), `world` (ao entrar no mundo) ou `command` (só com `/waifu spawn`) |
+| `use_chests` | `true` | Ela pode pegar ingredientes dos baús a até 16 blocos quando precisa fazer algo |
 
 ### 3. Comandos no jogo
 
@@ -212,6 +213,7 @@ waifu-scam/
 | 7 · Polimento 🧪 | Dormir na cama, armadura e escudo automáticos, plugins da Mente | Contínuo |
 | 8 · Visão 🧪 | Campo de visão de verdade, lembrança de onde viu minérios/baús/vilas, mineração na altura certa | Volta sozinha ao ferro que viu ontem |
 | 9 · Receitas 🧪 | Todas as receitas do jogo, passo a passo conferido antes de prometer, nomes em português | "Faz uma cama" sai do zero |
+| 10 · Baú e horta 🧪 | Usa o que está nos baús da base, colhe, replanta e ara terra | Faz pão com o trigo da horta |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

@@ -10,6 +10,7 @@ import dev.vry.waifuscam.craft.Planner.Plan;
 import dev.vry.waifuscam.craft.Planner.Smelt;
 import dev.vry.waifuscam.craft.Planner.Step;
 import dev.vry.waifuscam.craft.Planner.World;
+import dev.vry.waifuscam.craft.Planner.Withdraw;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -114,6 +115,7 @@ class PlannerTest {
 		Map<String, Integer> inv = new HashMap<>(start);
 		for (Step step : plan.steps()) {
 			switch (step) {
+				case Withdraw w -> inv.merge(w.item(), w.count(), Integer::sum);
 				case Gather g -> inv.merge(gatherAs != null && g.source().items().contains(gatherAs)
 						? gatherAs : g.item(), g.count(), Integer::sum);
 				case Craft c -> {
@@ -145,6 +147,7 @@ class PlannerTest {
 		List<String> out = new ArrayList<>();
 		for (Step s : plan.steps()) {
 			out.add(switch (s) {
+				case Withdraw w -> "withdraw " + w.item() + " x" + w.count();
 				case Gather g -> "gather " + g.count();
 				case Craft c -> "craft " + c.recipe().output() + " x" + c.times();
 				case Smelt m -> "smelt " + m.recipe().output() + " x" + m.times();
@@ -197,6 +200,17 @@ class PlannerTest {
 		Plan again = planner.plan("stone_pickaxe", 1, inv, NOTHING_NEAR);
 		assertEquals("craft birch_planks x1", describe(again).get(0).replaceAll("x\\d+", "x1"));
 		assertTrue(run(again, inv, "birch_log").getOrDefault("stone_pickaxe", 0) >= 1);
+	}
+
+	@Test
+	void usesWhatIsInTheChestFirst() {
+		World chest = new World(false, true, Map.of("iron_ingot", 2, "coal", 10));
+		Plan plan = planner.plan("iron_ingot", 3, Map.of("stone_pickaxe", 1), chest);
+		assertTrue(plan.possible(), String.valueOf(plan.failure()));
+		List<String> d = describe(plan);
+		assertEquals("withdraw iron_ingot x2", d.get(0), d.toString());
+		assertEquals("smelt iron_ingot x1", d.get(d.size() - 1), d.toString());
+		assertTrue(run(plan, Map.of("stone_pickaxe", 1), null).getOrDefault("iron_ingot", 0) >= 3);
 	}
 
 	@Test

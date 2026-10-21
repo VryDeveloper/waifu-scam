@@ -30,6 +30,10 @@ public final class ModConfig {
 	@SerializedName("join_on")
 	public String joinOn = "lan";
 
+	/** Ela pode pegar ingredientes dos baús por perto (16 blocos) quando precisa fazer algo. */
+	@SerializedName("use_chests")
+	public boolean useChests = true;
+
 	/** Lê o arquivo; se não existir ou estiver quebrado, usa os padrões e grava um arquivo novo. */
 	public static ModConfig load(Path configDir) {
 		Path file = configDir.resolve(FILE_NAME);

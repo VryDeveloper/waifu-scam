@@ -14,6 +14,7 @@ import dev.vry.waifuscam.craft.Planner.Gather;
 import dev.vry.waifuscam.craft.Planner.Plan;
 import dev.vry.waifuscam.craft.Planner.Smelt;
 import dev.vry.waifuscam.craft.Planner.Step;
+import dev.vry.waifuscam.craft.Planner.Withdraw;
 import dev.vry.waifuscam.hands.BlockFinder;
 import dev.vry.waifuscam.hands.Stacks;
 import net.minecraft.server.MinecraftServer;
@@ -54,7 +55,9 @@ public final class Queries {
 				p -> me.level().getBlockState(p).is(Blocks.CRAFTING_TABLE)).isEmpty();
 		boolean furnace = !BlockFinder.find(me.level(), me.blockPosition(), 12, 1,
 				p -> me.level().getBlockState(p).is(Blocks.FURNACE)).isEmpty();
-		return new Planner.World(table, furnace);
+		var mod = dev.vry.waifuscam.WaifuScamMod.instance();
+		boolean chests = mod == null || mod.config() == null || mod.config().useChests;
+		return new Planner.World(table, furnace, chests ? ChestSkill.stored(me.level(), me.blockPosition(), 16) : Map.of());
 	}
 
 	public static JsonObject plan(String raw, int count, MinecraftServer server, ServerPlayer me) {
@@ -151,6 +154,11 @@ public final class Queries {
 	private static JsonObject step(Step step) {
 		JsonObject o = new JsonObject();
 		switch (step) {
+			case Withdraw w -> {
+				o.addProperty("do", "withdraw");
+				o.addProperty("item", w.item().replace("minecraft:", ""));
+				o.addProperty("count", w.count());
+			}
 			case Gather g -> {
 				o.addProperty("do", g.source().hunt() ? "hunt" : "gather");
 				o.addProperty("item", g.item().replace("minecraft:", ""));
@@ -221,6 +229,7 @@ public final class Queries {
 				case "hunt" -> "caçar";
 				case "gather" -> "pegar";
 				case "smelt" -> "assar";
+				case "withdraw" -> "tirar do baú";
 				default -> "craftar";
 			};
 			parts.add(verb + " " + s.get("count").getAsInt() + " " + what);

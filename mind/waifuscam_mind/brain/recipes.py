@@ -47,6 +47,8 @@ def _step(names: ItemNames, step: dict[str, Any]) -> str:
         case "gather":
             source = names.name(str((step.get("from") or [step.get("item")])[0]))
             return f"pegar {n} {what}" + (f" (de {source})" if source != what else "")
+        case "withdraw":
+            return f"tirar {n} {what} do baú"
         case "smelt":
             return f"assar {n} {what}"
         case _:

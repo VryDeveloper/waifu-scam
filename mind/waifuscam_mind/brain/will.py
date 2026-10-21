@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .. import protocol as p
-from .goals import choose
+from .goals import Goal, choose
 from .needs import Needs, assess, dusk
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ class Will:
     shelter_retry_at: float = field(default=float("-inf"))
     last_announce: float = field(default=float("-inf"))
     _thinking: bool = False
-    _goal_by_id: dict[str, str] = field(default_factory=dict)
+    _goal_by_id: dict[str, Goal] = field(default_factory=dict)
     _blocked_until: dict[str, float] = field(default_factory=dict)
     _shelter_id: str | None = None
     _hold_until: float = field(default=float("-inf"))
@@ -129,10 +129,12 @@ class Will:
 
     def skill_ended(self, skill_id: str, failed: bool, cancelled: bool) -> None:
         """O corpo terminou algo que a Vontade começou: objetivo que falhou fica de lado por um tempo."""
-        key = self._goal_by_id.pop(skill_id, None)
-        if key is not None and failed and not cancelled:
-            self._blocked_until[key] = self.clock() + 600
-            log.info("Objetivo %s falhou; tento outra coisa por 10 min", key)
+        goal = self._goal_by_id.pop(skill_id, None)
+        if goal is not None and failed and not cancelled:
+            self._blocked_until[goal.key] = self.clock() + 600
+            log.info("Objetivo %s falhou; tento outra coisa por 10 min", goal.key)
+        elif goal is not None and not failed and goal.cooldown > 0:
+            self._blocked_until[goal.key] = self.clock() + goal.cooldown  # cumprido: só daqui a pouco de novo
         if skill_id == self._shelter_id:
             self._shelter_id = None
             if failed and not cancelled:
@@ -226,7 +228,7 @@ class Will:
                     quiet=not speak,
                 )
                 if skill_id:
-                    self._goal_by_id[skill_id] = goal.key
+                    self._goal_by_id[skill_id] = goal
                 log.info("Vontade própria: %s", goal.key)
                 return
 

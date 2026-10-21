@@ -227,6 +227,11 @@ public final class GameKnowledge implements Knowledge {
 		drop(Items.MELON_SLICE, Blocks.MELON);
 		drop(Items.BAMBOO, Blocks.BAMBOO);
 		drop(Items.CACTUS, Blocks.CACTUS);
+		// Plantação: só colhe maduro, e replanta (CollectSkill/FarmSkill).
+		drop(Items.WHEAT, Blocks.WHEAT);
+		drop(Items.CARROT, Blocks.CARROTS);
+		drop(Items.POTATO, Blocks.POTATOES);
+		drop(Items.BEETROOT, Blocks.BEETROOTS);
 		drop(Items.FLINT, Blocks.GRAVEL); // nem toda quebra solta: ela pega o que cair e repete
 		drop(Items.WHEAT_SEEDS, Blocks.SHORT_GRASS, Blocks.TALL_GRASS);
 		drop(Items.GLOWSTONE_DUST, Blocks.GLOWSTONE);

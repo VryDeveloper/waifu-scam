@@ -109,6 +109,17 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 9.5 | Sem picareta e sem pedra por perto, `lumi faz um balde` | Ela diz o que falta em vez de prometer |
 | 9.6 | No log da Mente | Ao subir: `Nomes de ... itens e blocos, da tradução do jogo`; a cada pedido: `Plano para ...` |
 
+## Fase 10 — Baú e horta
+
+| # | Faça | Esperado |
+|---|---|---|
+| 10.1 | Ponha 3 lingotes de ferro num baú perto e diga `lumi faz uma picareta de ferro` | Ela tira o ferro do baú em vez de minerar (`/waifu plan iron_pickaxe` mostra "tirar do baú") |
+| 10.2 | Faça uma plantação de trigo, espere amadurecer e diga `lumi colhe o trigo` | Ela colhe só o maduro e replanta cada pé |
+| 10.3 | `lumi faz pão` com trigo maduro por perto | Colhe, replanta e crafta o pão |
+| 10.4 | Dê uma enxada e sementes, perto de água: `lumi planta essas sementes` | Ela ara até 9 blocos perto da água e planta |
+| 10.5 | Deixe ela perto da horta, sozinha, por uns minutos | Ela cuida da plantação de vez em quando (no máximo a cada 20 min), sem avisar |
+| 10.6 | Ponha `"use_chests": false` em `config/waifuscam.json` e reabra o jogo | Ela não mexe mais nos baús para craftar |
+
 ## Se algo travar
 
 - Ela parou no meio de uma tarefa: `/waifu status` mostra o que ela acha que está fazendo; `/waifu stop` destrava.

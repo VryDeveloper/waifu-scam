@@ -122,3 +122,20 @@ async def test_query_round_trip(server):  # noqa: F811
         assert q.query == "plan" and q.args == {"item": "torch", "count": 2}
         await body.send(p.QueryResult(id=q.id, ok=True, steps=[]))
         assert await ask == {"ok": True, "failure": None, "steps": []}
+
+
+def test_chest_step_text():
+    plan = {
+        "ok": True,
+        "item": "iron_pickaxe",
+        "count": 1,
+        "have": 0,
+        "steps": [
+            {"do": "withdraw", "item": "iron_ingot", "count": 3},
+            {"do": "craft", "item": "iron_pickaxe", "count": 1, "table": True},
+        ],
+        "table_nearby": True,
+    }
+    text = describe_plan(plan, ItemNames())
+    assert "tirar 3 lingote de ferro do baú → craftar 1 picareta de ferro na bancada" in text
+    assert "tem bancada perto" in text

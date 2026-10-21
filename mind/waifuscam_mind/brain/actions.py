@@ -71,6 +71,7 @@ HINTS = {
     "give": "entregar itens para alguém (consegue antes se faltar)",
     "deposit": "guardar no baú (sem item: tudo menos ferramenta, arma, armadura e comida)",
     "withdraw": "pegar do baú",
+    "farm": "cuidar da plantação: colher o maduro, replantar, plantar (com enxada, ara perto da água)",
     "hunt": "caçar cow, pig, sheep, chicken, rabbit",
     "attack": "atacar: um tipo de bicho (iron_golem, zombie) ou o bicho que um player está atacando",
     "shelter": "passar a noite num abrigo",

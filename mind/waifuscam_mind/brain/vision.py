@@ -49,8 +49,12 @@ _BLOCKS = {
     "melon": "melancia",
     "pumpkin": "abóbora",
     "sugar_cane": "cana-de-açúcar",
-    "wheat": "trigo",
+    "wheat": "plantação de trigo",
+    "carrots": "plantação de cenoura",
+    "potatoes": "plantação de batata",
+    "beetroots": "plantação de beterraba",
 }
+CROPS = {"wheat", "carrots", "potatoes", "beetroots"}
 # palavras que ela (ou o player) usa → tipo de lembrança
 ALIASES = {
     "diamante": "diamante",
@@ -83,6 +87,10 @@ ALIASES = {
     "abóbora": "abóbora",
     "cana": "cana-de-açúcar",
     "colmeia": "colmeia",
+    "plantacao": "plantação",
+    "plantação": "plantação",
+    "fazenda": "plantação",
+    "horta": "plantação",
 }
 
 
@@ -103,6 +111,8 @@ def kind(block: str) -> str:
     if b.endswith("_ore"):
         base = b.removesuffix("_ore").removeprefix("deepslate_")
         return _ORES.get(base, base.replace("_", " "))
+    if b in CROPS:
+        return "plantação"
     return label(b)
 
 

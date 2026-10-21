@@ -23,7 +23,10 @@ import java.util.Set;
  */
 public final class Planner {
 
-	public sealed interface Step permits Gather, Craft, Smelt {}
+	public sealed interface Step permits Withdraw, Gather, Craft, Smelt {}
+
+	/** Pegar `count` do item de um baú por perto (o mais barato: já está pronto). */
+	public record Withdraw(String item, int count) implements Step {}
 
 	/**
 	 * Minerar até ter mais `count` itens da família da fonte. `item` é a variante
@@ -51,8 +54,19 @@ public final class Planner {
 		}
 	}
 
-	/** O que existe perto dela (bancada e fornalha já colocadas no mundo). */
-	public record World(boolean tableNearby, boolean furnaceNearby) {}
+	/**
+	 * O que existe perto dela: bancada e fornalha já colocadas no mundo, e o que
+	 * tem guardado nos baús por perto (id → quantidade).
+	 */
+	public record World(boolean tableNearby, boolean furnaceNearby, Map<String, Integer> stored) {
+		public World {
+			stored = Map.copyOf(stored);
+		}
+
+		public World(boolean tableNearby, boolean furnaceNearby) {
+			this(tableNearby, furnaceNearby, Map.of());
+		}
+	}
 
 	private static final int MAX_DEPTH = 12;
 	/** Quantas variantes de um ingrediente testar (ex.: os 12 tipos de tábua). */
@@ -71,6 +85,7 @@ public final class Planner {
 	public Plan plan(Choice wanted, int count, Map<String, Integer> inventory, World world) {
 		expansions = 0;
 		Sim sim = new Sim(new HashMap<>(inventory), world.tableNearby(), world.furnaceNearby());
+		sim.stored.putAll(world.stored());
 		String failure = obtain(sim, wanted, count, 0, new HashSet<>());
 		return failure == null ? new Plan(List.copyOf(sim.steps), null) : new Plan(List.of(), failure);
 	}
@@ -83,6 +98,7 @@ public final class Planner {
 
 	private static final class Sim {
 		final Map<String, Integer> inv;
+		final Map<String, Integer> stored = new HashMap<>();
 		boolean table;
 		boolean furnace;
 		final List<Step> steps = new ArrayList<>();
@@ -96,6 +112,7 @@ public final class Planner {
 
 		Sim copy() {
 			Sim s = new Sim(new HashMap<>(inv), table, furnace);
+			s.stored.putAll(stored);
 			s.steps.addAll(steps);
 			s.cost = cost;
 			return s;
@@ -104,6 +121,8 @@ public final class Planner {
 		void restore(Sim other) {
 			inv.clear();
 			inv.putAll(other.inv);
+			stored.clear();
+			stored.putAll(other.stored);
 			table = other.table;
 			furnace = other.furnace;
 			steps.clear();
@@ -192,7 +211,7 @@ public final class Planner {
 	private List<String> rank(Sim sim, Choice wanted) {
 		List<String> items = new ArrayList<>(wanted.items());
 		items.sort(Comparator.comparingInt((String item) -> {
-			if (sim.inv.getOrDefault(item, 0) > 0) {
+			if (sim.inv.getOrDefault(item, 0) > 0 || sim.stored.getOrDefault(item, 0) > 0) {
 				return 0;
 			}
 			for (CraftRecipe r : knowledge.craftsFor(item)) {
@@ -214,6 +233,19 @@ public final class Planner {
 
 	private String obtainItem(Sim sim, String item, int missing, int depth, Set<String> visiting) {
 		String firstFailure = null;
+
+		// 0) já tem guardado no baú: pega de lá
+		int inChest = Math.min(missing, sim.stored.getOrDefault(item, 0));
+		if (inChest > 0) {
+			sim.steps.add(new Withdraw(item, inChest));
+			sim.stored.merge(item, -inChest, Integer::sum);
+			sim.add(item, inChest);
+			sim.cost += 3;
+			missing -= inChest;
+			if (missing <= 0) {
+				return null;
+			}
+		}
 
 		// 1) minerar (o mais natural para matéria-prima)
 		for (Source source : knowledge.sourcesFor(item)) {

@@ -104,12 +104,42 @@ public final class ChestSkill implements Skill {
 	}
 
 	private static Container container(SkillContext ctx, BlockPos pos) {
-		BlockState s = ctx.level().getBlockState(pos);
+		return container(ctx.level(), pos);
+	}
+
+	private static Container container(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
+		BlockState s = level.getBlockState(pos);
 		if (s.getBlock() instanceof ChestBlock chestBlock) {
-			return ChestBlock.getContainer(chestBlock, s, ctx.level(), pos, true);
+			return ChestBlock.getContainer(chestBlock, s, level, pos, true);
 		}
-		BlockEntity be = ctx.level().getBlockEntity(pos);
+		BlockEntity be = level.getBlockEntity(pos);
 		return be instanceof Container c ? c : null;
+	}
+
+	/**
+	 * O que tem guardado nos baús e barris por perto (id → quantidade). Baú duplo
+	 * conta uma vez só. É o que ela veria abrindo os baús da base.
+	 */
+	public static java.util.Map<String, Integer> stored(net.minecraft.server.level.ServerLevel level, BlockPos center, int radius) {
+		java.util.Map<String, Integer> out = new java.util.HashMap<>();
+		for (BlockPos p : BlockFinder.find(level, center, radius, 32, q -> isStorage(level.getBlockState(q)))) {
+			BlockState st = level.getBlockState(p);
+			// baú duplo: as duas metades abrem o mesmo baú; conta só pela metade da esquerda
+			if (st.hasProperty(ChestBlock.TYPE) && st.getValue(ChestBlock.TYPE) == net.minecraft.world.level.block.state.properties.ChestType.RIGHT) {
+				continue;
+			}
+			Container c = container(level, p);
+			if (c == null) {
+				continue;
+			}
+			for (int i = 0; i < c.getContainerSize(); i++) {
+				ItemStack s = c.getItem(i);
+				if (!s.isEmpty()) {
+					out.merge(Stacks.id(s), s.getCount(), Integer::sum);
+				}
+			}
+		}
+		return out;
 	}
 
 	private boolean keep(ItemStack s) {
