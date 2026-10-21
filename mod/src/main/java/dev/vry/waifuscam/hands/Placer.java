@@ -85,4 +85,54 @@ public final class Placer {
 		}
 		return level.getBlockState(target).is(blockItem.getBlock());
 	}
+
+	/**
+	 * Coloca o bloco em target apoiando em qualquer bloco firme do lado (como um
+	 * player faz com teto e parede): clica na face do vizinho virada para target.
+	 * Tenta o apoio de baixo primeiro. Devolve true se o bloco ficou lá.
+	 */
+	public static boolean placeAgainst(ServerPlayer player, Item item, BlockPos target) {
+		if (!(item instanceof BlockItem blockItem)) {
+			return false;
+		}
+		ServerLevel level = player.level();
+		BlockState here = level.getBlockState(target);
+		if (!here.canBeReplaced() || !level.getEntitiesOfClass(LivingEntity.class, new AABB(target)).isEmpty()) {
+			return false;
+		}
+		Direction support = supportFor(level, target);
+		if (support == null) {
+			return false;
+		}
+		Inventory inv = player.getInventory();
+		int slot = Stacks.find(inv, s -> s.is(item));
+		if (slot < 0) {
+			return false;
+		}
+		Stacks.hold(inv, slot);
+		BlockPos neighbor = target.relative(support);
+		Direction face = support.getOpposite();
+		Vec3 hit = Vec3.atCenterOf(neighbor).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+		player.lookAt(net.minecraft.commands.arguments.EntityAnchorArgument.Anchor.EYES, hit);
+		ItemStack stack = player.getItemInHand(InteractionHand.MAIN_HAND);
+		InteractionResult result = player.gameMode.useItemOn(player, level, stack, InteractionHand.MAIN_HAND,
+				new BlockHitResult(hit, face, neighbor, false));
+		if (result.consumesAction()) {
+			player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+		}
+		return level.getBlockState(target).is(blockItem.getBlock());
+	}
+
+	/** Direção de um vizinho firme onde dá para apoiar o bloco (baixo primeiro), ou null. */
+	public static Direction supportFor(ServerLevel level, BlockPos target) {
+		Direction[] order = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.UP};
+		for (Direction d : order) {
+			BlockPos n = target.relative(d);
+			BlockState s = level.getBlockState(n);
+			if (!s.isAir() && !s.canBeReplaced() && !s.getCollisionShape(level, n).isEmpty()) {
+				return d;
+			}
+		}
+		return null;
+	}
 }

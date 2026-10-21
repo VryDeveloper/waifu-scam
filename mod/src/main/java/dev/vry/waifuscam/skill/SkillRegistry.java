@@ -148,6 +148,42 @@ public final class SkillRegistry {
 				params("{\"type\":\"object\",\"properties\":{}}"),
 				(args, server, me) -> new FarmSkill()));
 
+		// ---- fase 12: construir ----
+
+		register(new Spec("build",
+				"Construir uma casinha 5x5 com porta e tocha num lugar plano perto, juntando o material que faltar. "
+						+ "structure: house (casa). Material opcional: house_cobblestone, house_oak_planks.",
+				params("{\"type\":\"object\",\"properties\":{\"structure\":{\"type\":\"string\",\"description\":\"house, ou house_<material>\"}},\"required\":[\"structure\"]}"),
+				(args, server, me) -> {
+					String raw = args.has("structure") ? args.get("structure").getAsString().toLowerCase().trim() : "house";
+					String kind = raw.contains("_") ? raw.substring(0, raw.indexOf('_')) : raw;
+					String mat = raw.contains("_") ? raw.substring(raw.indexOf('_') + 1) : "";
+					if (!java.util.Set.of("house", "casa", "casinha", "cabana", "hut", "home", "base").contains(kind)) {
+						throw new SkillException("ainda só sei construir casinha");
+					}
+					Choice material = null;
+					mat = mat.replaceFirst("^(de|do|da|of)_", "");
+					mat = switch (mat) {
+						case "pedra", "pedregulho", "stone" -> "cobblestone";
+						case "madeira", "tabua", "tabuas", "wood", "planks" -> "#planks";
+						default -> mat;
+					};
+					if (!mat.isBlank()) {
+						List<String> items = Stacks.resolve(mat);
+						if (items.isEmpty()) {
+							throw new SkillException("não conheço o material '" + mat + "'");
+						}
+						material = new Choice(items);
+					}
+					return new BuildSkill(material, "casinha");
+				}));
+
+		register(new Spec("bridge",
+				"Fazer uma ponte reta (rio, buraco, lava) para onde `player` está olhando, até o outro lado ou `length` blocos.",
+				params("{\"type\":\"object\",\"properties\":{" + PLAYER + ",\"length\":{\"type\":\"integer\",\"minimum\":2,\"maximum\":64}}}"),
+				(args, server, me) -> new BridgeSkill(args.has("length") ? args.get("length").getAsInt() : 24,
+						args.has("player") ? player(server, args).getDirection() : null)));
+
 		// ---- fase 5: sobreviver ----
 
 		register(new Spec("hunt",

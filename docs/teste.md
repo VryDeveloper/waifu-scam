@@ -131,6 +131,16 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 11.5 | `lumi me segue` e entre numa caverna escura, com tochas no inventário dela | Ela deixa tocha no caminho a cada ~8 blocos |
 | 11.6 | Deixe ela sozinha com o equipamento de ferro pronto | Ela faz um arco e depois flechas, sem avisar |
 
+## Fase 12 — Construir
+
+| # | Faça | Esperado |
+|---|---|---|
+| 12.1 | Num campo plano, `lumi constrói uma casinha pra gente` (ou `/waifu build`) | Ela junta tábuas se faltar, limpa o terreno, levanta paredes e teto de dentro, põe porta e tocha e sai pela porta |
+| 12.2 | `lumi faz uma casa de pedra` | Mesma casinha, de pedregulho |
+| 12.3 | Depois, longe dali: `lumi vamos pra casa` | Ela lembra (a casa vira o lugar "casa") e vai até lá |
+| 12.4 | Na beira de um rio, olhando para o outro lado: `lumi faz uma ponte` (ou `/waifu bridge`) | Ela vai agachada pondo bloco na frente até o outro lado |
+| 12.5 | Num lugar todo irregular (montanha) | Ela diz que não achou lugar plano em vez de fazer torto |
+
 ## Se algo travar
 
 - Ela parou no meio de uma tarefa: `/waifu status` mostra o que ela acha que está fazendo; `/waifu stop` destrava.

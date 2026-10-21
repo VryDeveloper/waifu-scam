@@ -95,7 +95,7 @@ QUICK = {
     "follow": ({"segue", "siga", "seguir"}, {"me", "eu", "mim", "comigo"}, "bora, tô indo atrás de você"),
     "come": ({"vem", "venha", "volta"}, {"aqui", "ca", "comigo", "pra", "perto"}, "tô indo aí"),
 }
-WORK_SKILLS = {"obtain", "craft", "collect", "give", "hunt", "deposit", "withdraw"}
+WORK_SKILLS = {"obtain", "craft", "collect", "give", "hunt", "deposit", "withdraw", "build", "bridge", "farm"}
 PLAN_SKILLS = {"obtain", "craft", "give"}  # antes de começar, confere com o corpo se dá para fazer
 DONE_COMMENT_COOLDOWN = 20.0
 MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
@@ -487,6 +487,8 @@ class ChatBrain:
         if isinstance(msg, p.SkillDone):
             if msg.skill != "stop":
                 self._note(f"você terminou: {msg.skill}")
+            if msg.skill == "build":
+                self._remember_house(mouth)
             # Só conta que terminou quando foi alguém que pediu; o que ela faz sozinha, faz em silêncio.
             if (
                 started is not None
@@ -518,6 +520,16 @@ class ChatBrain:
             mouth,
             instruction=f"Você tentou fazer '{msg.skill}', mas não deu: {msg.reason}. Comente em uma frase curta.",
             partner=started[2],
+        )
+
+    def _remember_house(self, mouth: Mouth) -> None:
+        """Casa nova: vira um lugar lembrado ("casa", "casa_2"...), para voltar com [ação: goto casa]."""
+        st = mouth.state.model_dump() if mouth.state else {}
+        if "x" not in st:
+            return
+        name = next(n for n in ("casa", *(f"casa_{i}" for i in range(2, 20))) if n not in self.memory.places)
+        self.memory.remember_place(
+            name, st["x"], st["y"], st["z"], st.get("dimension", ""), "a casinha que você construiu"
         )
 
     def _note(self, what: str) -> None:

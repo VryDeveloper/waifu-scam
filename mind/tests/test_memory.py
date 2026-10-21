@@ -207,3 +207,20 @@ async def test_tells_when_a_requested_job_is_done(lumi):
     # habilidade que ela não começou (comando) não gera comentário
     await b.on_skill_ended(mouth, p.SkillDone(id="cmd-7", skill="obtain"))
     assert len(llm.calls) == 2
+
+
+async def test_built_house_becomes_a_place(characters_dir, tmp_path):
+    from waifuscam_mind import protocol as p
+    from waifuscam_mind.character import load_character
+    from waifuscam_mind.memory import Memory
+
+    from .test_chat_brain import FakeLLM, FakeMouth, brain
+
+    lumi = load_character(characters_dir, "lumi")
+    b = brain(lumi, FakeLLM("ok"))
+    b.memory = Memory(tmp_path / "m.json")
+    mouth = FakeMouth()
+    mouth.state = p.State(online=True, players=["Lumi", "Vry"], x=10.0, y=64.0, z=-3.0)
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="build"))
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-2", skill="build"))
+    assert b.memory.place("casa").x == 10 and b.memory.place("casa_2") is not None

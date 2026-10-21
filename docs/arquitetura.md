@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Construir (fase 12)
+
+`build` levanta uma casinha 5x5 (dentro 3x3, paredes de 3, teto reto) num lugar plano na frente dela: aceita 1 bloco de desnível (preenche o chão) e até 20 blocos para limpar. Junta o material com o `obtain` (tábuas, ou o que pedirem), entra no meio do terreno e constrói de lá, onde alcança tudo, de baixo para cima e o teto das bordas para o meio. `Placer.placeAgainst` coloca cada bloco apoiado no vizinho firme, como um player faz em parede e teto. Porta e tocha entram se ela tiver; no fim, a casa vira o lugar lembrado "casa". `bridge` vai agachada pondo bloco na frente, embaixo, até achar chão firme do outro lado.
+
 ### Aventura (fase 11)
 
 Os reflexos ganharam o arco (`hands/Archery`): com arco e flecha, ela atira em quem está vindo atrás dela ou de um player perto, e em creeper chegando, entre 5 e 24 blocos. Puxa a corda até o arco encher, mira onde o bicho vai estar (velocidade dele × tempo de voo) e compensa a queda da flecha; se um player estiver perto da linha do tiro, espera. De perto continua a espada. Seguindo alguém numa caverna escura, ela deixa tocha a cada ~8 blocos.

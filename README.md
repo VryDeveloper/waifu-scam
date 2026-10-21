@@ -215,6 +215,7 @@ waifu-scam/
 | 9 · Receitas 🧪 | Todas as receitas do jogo, passo a passo conferido antes de prometer, nomes em português | "Faz uma cama" sai do zero |
 | 10 · Baú e horta 🧪 | Usa o que está nos baús da base, colhe, replanta e ara terra | Faz pão com o trigo da horta |
 | 11 · Aventura 🧪 | Arco e flecha com mira de verdade, defende quem ela acompanha, tocha nas cavernas | Te protege numa caverna |
+| 12 · Construir 🧪 | Casinha 5x5 com porta e tocha, ponte até o outro lado | "Constrói uma casa pra gente" vira casa de verdade |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

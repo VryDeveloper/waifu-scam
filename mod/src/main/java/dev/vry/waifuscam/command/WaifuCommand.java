@@ -166,6 +166,17 @@ public final class WaifuCommand {
 				.then(Commands.literal("deposit").executes(ctx ->
 						run(ctx.getSource(), mod, "deposit", new JsonObject(), "Ela vai guardar as coisas no baú.")))
 				// ---- fase 5: sobreviver ----
+				// ---- fase 12: construir ----
+				.then(Commands.literal("build").executes(ctx -> {
+					JsonObject args = new JsonObject();
+					args.addProperty("structure", "house");
+					return run(ctx.getSource(), mod, "build", args, "Ela vai construir uma casinha.");
+				}))
+				.then(Commands.literal("bridge").executes(ctx -> {
+					JsonObject args = ctx.getSource().getPlayer() != null
+							? playerArg(ctx.getSource().getPlayer().getGameProfile().name()) : new JsonObject();
+					return run(ctx.getSource(), mod, "bridge", args, "Ela vai fazer uma ponte para onde você está olhando.");
+				}))
 				.then(Commands.literal("sleep").executes(ctx ->
 						run(ctx.getSource(), mod, "sleep", new JsonObject(), "Ela vai dormir.")))
 				.then(Commands.literal("shelter").executes(ctx ->

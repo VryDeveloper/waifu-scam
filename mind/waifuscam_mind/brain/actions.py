@@ -71,6 +71,8 @@ HINTS = {
     "give": "entregar itens para alguém (consegue antes se faltar)",
     "deposit": "guardar no baú (sem item: tudo menos ferramenta, arma, armadura e comida)",
     "withdraw": "pegar do baú",
+    "build": "construir uma casinha 5x5 com porta (build house, ou build house_cobblestone); junta o material",
+    "bridge": "fazer uma ponte reta para onde quem pediu está olhando, até o outro lado (rio, buraco, lava)",
     "farm": "cuidar da plantação: colher o maduro, replantar, plantar (com enxada, ara perto da água)",
     "hunt": "caçar cow, pig, sheep, chicken, rabbit",
     "attack": "atacar: um tipo de bicho (iron_golem, zombie) ou o bicho que um player está atacando",
