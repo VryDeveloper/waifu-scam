@@ -166,6 +166,13 @@ public final class WaifuCommand {
 				.then(Commands.literal("deposit").executes(ctx ->
 						run(ctx.getSource(), mod, "deposit", new JsonObject(), "Ela vai guardar as coisas no baú.")))
 				// ---- fase 5: sobreviver ----
+				// Liga/desliga o que ela faz por conta própria (objetivos, ideias soltas).
+				.then(Commands.literal("autonomy")
+						.then(Commands.literal("on").executes(ctx -> autonomy(ctx.getSource(), mod, true)))
+						.then(Commands.literal("off").executes(ctx -> autonomy(ctx.getSource(), mod, false))))
+				.then(Commands.literal("autonomia")
+						.then(Commands.literal("on").executes(ctx -> autonomy(ctx.getSource(), mod, true)))
+						.then(Commands.literal("off").executes(ctx -> autonomy(ctx.getSource(), mod, false))))
 				// ---- fase 12: construir ----
 				.then(Commands.literal("build").executes(ctx -> {
 					JsonObject args = new JsonObject();
@@ -256,6 +263,21 @@ public final class WaifuCommand {
 		args.addProperty("item", item);
 		args.addProperty("count", count);
 		return run(ctx.getSource(), mod, skill, args, ok + " " + count + " " + item.replace("minecraft:", "") + ".");
+	}
+
+	private static int autonomy(CommandSourceStack src, WaifuScamMod mod, boolean on) {
+		if (!mod.isMindConnected()) {
+			src.sendFailure(Component.literal("A Mente não está conectada."));
+			return 0;
+		}
+		JsonObject fields = new JsonObject();
+		fields.addProperty("enabled", on);
+		fields.addProperty("from", src.getTextName());
+		mod.sendMindEvent("set_autonomy", fields);
+		src.sendSuccess(() -> Component.literal(on
+				? "Ela volta a fazer as coisas dela por conta própria."
+				: "Ela só faz o que pedirem (o abrigo da noite continua). Volta com /waifu autonomy on."), false);
+		return 1;
 	}
 
 	private static int plan(CommandContext<CommandSourceStack> ctx, WaifuScamMod mod, int count) {

@@ -141,6 +141,14 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 12.4 | Na beira de um rio, olhando para o outro lado: `lumi faz uma ponte` (ou `/waifu bridge`) | Ela vai agachada pondo bloco na frente até o outro lado |
 | 12.5 | Num lugar todo irregular (montanha) | Ela diz que não achou lugar plano em vez de fazer torto |
 
+## Desligar o comportamento espontâneo
+
+| # | Faça | Esperado |
+|---|---|---|
+| A.1 | `/waifu autonomy off` | Ela para o que inventou de fazer e passa a só fazer o que pedirem (o abrigo da noite continua) |
+| A.2 | Reinicie a Mente | Continua desligado (fica salvo na memória dela) |
+| A.3 | `/waifu autonomy on` | Ela volta a seguir os objetivos dela |
+
 ## Se algo travar
 
 - Ela parou no meio de uma tarefa: `/waifu status` mostra o que ela acha que está fazendo; `/waifu stop` destrava.

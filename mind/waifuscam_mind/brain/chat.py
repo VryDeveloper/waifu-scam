@@ -168,7 +168,7 @@ def describe_situation(state: p.State | None, me: str) -> str:
         lines.append(f"- Online com você: {', '.join(others)}")
     inventory = s.get("inventory")
     if isinstance(inventory, dict):
-        items = ", ".join(f"{n} {item}" for item, n in inventory.items())
+        items = ", ".join(f"{n} {item}" for item, n in list(inventory.items())[:25])
         lines.append(f"- Seu inventário: {items}" if items else "- Seu inventário está vazio.")
     if s.get("holding"):
         lines.append(f"- Na mão: {s['holding']}")
@@ -265,6 +265,8 @@ class ChatBrain:
             clock=clock,
             start=self._start,
         )
+        if "spontaneous" in self.memory.settings:  # o que foi ligado/desligado no jogo vale mais que o toml
+            self.will.config.spontaneous = bool(self.memory.settings["spontaneous"])
         # Continua de onde parou: últimas falas e promessas da sessão anterior.
         self.history.extend(self.memory.history[-HISTORY_LINES:])
         for pr in self.memory.promises:
@@ -340,6 +342,13 @@ class ChatBrain:
                         int(data["z"]),
                         str(data.get("dimension", "minecraft:overworld")),
                     )
+            case "set_autonomy":
+                on = bool(data.get("enabled"))
+                self.will.config.spontaneous = on
+                self.memory.set("spontaneous", on)
+                log.info("Comportamento espontâneo %s por %s", "ligado" if on else "desligado", data.get("from", "?"))
+                if not on and self._doing_own_goal(mouth):
+                    await mouth.cancel_skill()  # para o que ela tinha inventado de fazer
             case "respawned":
                 self._note("você renasceu")
             case "despawned":
@@ -521,6 +530,13 @@ class ChatBrain:
             instruction=f"Você tentou fazer '{msg.skill}', mas não deu: {msg.reason}. Comente em uma frase curta.",
             partner=started[2],
         )
+
+    def _doing_own_goal(self, mouth: Mouth) -> bool:
+        """O que ela está fazendo agora foi ideia dela (não pedido de ninguém)?"""
+        st = mouth.state.model_dump() if mouth.state else {}
+        skill = st.get("skill") if isinstance(st.get("skill"), dict) else None
+        started = self._started.get(str(skill.get("id"))) if skill else None
+        return started is not None and started[2] is None
 
     def _remember_house(self, mouth: Mouth) -> None:
         """Casa nova: vira um lugar lembrado ("casa", "casa_2"...), para voltar com [ação: goto casa]."""

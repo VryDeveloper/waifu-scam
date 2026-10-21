@@ -84,6 +84,7 @@ class Memory:
         self.history: list[dict[str, str]] = []
         # mundo → bloco → [[x, y, z, dimensão, quando viu]]
         self.resources: dict[str, dict[str, list[list[Any]]]] = {}
+        self.settings: dict[str, Any] = {}  # ajustes feitos no jogo (/waifu autonomy off)
         self._dirty = False
         self._last_save = 0.0
         self.load()
@@ -105,6 +106,7 @@ class Memory:
         self.promises = list(data.get("promises") or [])
         self.history = list(data.get("history") or [])
         self.resources = dict(data.get("resources") or {})
+        self.settings = dict(data.get("settings") or {})
         log.info(
             "Memória carregada: %d lugares, %d pessoas, %d notas, %d dias no diário",
             len(self.places),
@@ -127,6 +129,7 @@ class Memory:
             "promises": self.promises,
             "history": self.history[-MAX_HISTORY:],
             "resources": self.resources,
+            "settings": self.settings,
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
@@ -168,6 +171,11 @@ class Memory:
             return False
         self._changed()
         return True
+
+    def set(self, key: str, value: Any) -> None:
+        if self.settings.get(key) != value:
+            self.settings[key] = value
+            self._changed()
 
     # ---- recursos (o que ela viu) -------------------------------------------------
 

@@ -28,6 +28,7 @@ curiosity = 1.0
 [will]
 # Vontade própria (fase 5): o que ela faz quando ninguém pede nada.
 enabled = true
+spontaneous = true        # false = só faz o que pedirem (também: /waifu autonomy off no jogo, que fica salvo)
 autopilot = true          # livre, ela segue os objetivos dela (picareta, espada, comida, fornalha, ferro...)
 goal_idle = 15            # segundos parada até pegar o próximo objetivo
 think_every = 150         # segundos parada até a IA pensar livremente (conversa, ideia nova)

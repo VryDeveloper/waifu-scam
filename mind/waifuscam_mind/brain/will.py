@@ -52,6 +52,7 @@ class Promise:
 @dataclass
 class WillConfig:
     enabled: bool = True
+    spontaneous: bool = True  # False: só faz o que pedirem (sem objetivos próprios nem ideias soltas)
     think_every: float = 150.0  # segundos parada até pensar livremente (conversa, ideia nova)
     shelter_at_night: bool = True
     hungry_think_every: float = 180.0
@@ -63,7 +64,7 @@ class WillConfig:
     @classmethod
     def from_section(cls, section: dict) -> WillConfig:
         cfg = cls()
-        for key in ("enabled", "shelter_at_night", "autopilot"):
+        for key in ("enabled", "shelter_at_night", "autopilot", "spontaneous"):
             if key in section:
                 setattr(cfg, key, bool(section[key]))
         for key in ("think_every", "hungry_think_every", "min_budget_fraction", "goal_idle", "announce_every"):
@@ -201,6 +202,8 @@ class Will:
             )
             return
 
+        if not self.config.spontaneous:
+            return  # comportamento espontâneo desligado: só pedidos, promessas e o abrigo da noite
         if self.budget_fraction() < self.config.min_budget_fraction:
             return
         if now - self.last_chat < 15:

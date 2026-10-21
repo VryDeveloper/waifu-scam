@@ -255,3 +255,26 @@ def test_bow_then_arrows_are_goals():
     assert "bow" in keys and "arrows" not in keys
     keys = [g.key for g in candidates({"inventory": {**base, "bow": 1}, "food": 20})]
     assert "arrows" in keys and "bow" not in keys
+
+
+async def test_spontaneous_behaviour_can_be_turned_off(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    b = make(lumi, FakeLLM("x"), clock)
+    await b.on_event(mouth, p.Event(event="set_autonomy", enabled=False, **{"from": "Vry"}))
+    clock.t += 500
+    await b.on_state(mouth, state(inventory={"dirt": 1}))
+    assert mouth.started == []  # nada de objetivo próprio nem ideia solta
+    assert b.memory.settings["spontaneous"] is False
+    await b.on_state(mouth, state(time_of_day=DUSK))
+    assert mouth.started == [("shelter", {})]  # abrigo da noite continua
+    await b.on_event(mouth, p.Event(event="set_autonomy", enabled=True, **{"from": "Vry"}))
+    assert b.will.config.spontaneous
+
+
+def test_full_inventory_counts_tools():
+    from waifuscam_mind.brain.goals import candidates
+
+    inv = {f"junk_{i}": 64 for i in range(30)} | {"iron_pickaxe": 1, "torch": 20}
+    keys = [g.key for g in candidates({"inventory": inv, "food": 20})]
+    assert "wooden_pickaxe" not in keys and "stone_pickaxe" not in keys and "torch" not in keys
