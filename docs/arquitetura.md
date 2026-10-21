@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Momentos juntos (fase 14)
+
+`PlayerWatch` também percebe quando alguém agacha e levanta olhando para ela (3 vezes em 2 s, o "carinho" dos players): o corpo agacha de volta na hora e manda o evento `crouch`, e a Mente reage. No `state`, cada player traz `sleeping` e `idle_seconds`. Quando não há nada para ajudar, a Vontade olha `brain/bonding.py`: ele parado há 25 s → ela vem para perto; de dia, a cada ~45 min (a primeira só depois de 20 min juntos) → ela colhe uma flor e entrega, e só fala na entrega. Se ele dorme, ela vai dormir também. Momentos especiais (primeira casa, primeira flor, primeira noite, primeiro agachar, uma semana/um mês/100 dias desde que se conheceram) ficam na memória (`moments`) e entram no prompt.
+
 ### Ajudar no que você faz (fase 13)
 
 O corpo escuta o que os players fazem (`PlayerWatch`: bloco quebrado, bloco usado na mão para construir, bicho atacado) e manda o último minuto no `state` (`players_activity`, com distância e se está embaixo da terra). A Vontade olha isso antes da lista de objetivos (`brain/helping.py`): cortando árvore → ela corta também; construindo com um bloco → ela junta e entrega; caverna funda ou luta → ela vai junto (seguindo, ela ilumina e os reflexos protegem) e para quando ele sai de lá; colheita → horta; caça → caça junto. Longe, primeiro ela chega perto. Dá preferência a quem está em `[chat] beloved`. Cada ajuda tem um tempo antes de repetir, e o que ele está fazendo também entra no prompt da conversa.

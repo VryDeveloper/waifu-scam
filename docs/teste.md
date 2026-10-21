@@ -156,6 +156,17 @@ Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
 | 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
 | 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
 
+## Fase 14 — Momentos juntos
+
+| # | Faça | Esperado |
+|---|---|---|
+| 14.1 | Olhando para ela, agache e levante 3 vezes rápido | Ela agacha de volta e reage com carinho (ou tímida) |
+| 14.2 | Fique parado uns 30 s a uns 10 blocos dela | Ela vem ficar pertinho de você |
+| 14.3 | Jogue de dia uns 20 min com ela perto | Em algum momento ela traz uma flor de presente e fala algo fofo |
+| 14.4 | Deite numa cama de noite (com outra cama do lado) | Ela vai dormir também |
+| 14.5 | Construam a primeira casa (`/waifu build`) e depois pergunte "lumi lembra da nossa casa?" | Ela lembra (vira um momento especial) |
+| 14.6 | Uma semana depois de vocês se conhecerem (no tempo real), entre no mundo | Ela lembra a data no "oi" |
+
 ## Correções do teste da fase 13
 
 | # | Faça | Esperado |

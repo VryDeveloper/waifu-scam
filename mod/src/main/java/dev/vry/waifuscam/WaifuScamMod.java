@@ -139,6 +139,15 @@ public final class WaifuScamMod implements ModInitializer {
 		// Um bug numa habilidade nunca pode derrubar o mundo de quem está jogando.
 		try {
 			companions.tick();
+			CompanionPlayer me = companions.player();
+			if (watch != null && me != null && !me.isDeadOrDying()) {
+				for (String who : watch.crouching(me)) {
+					companions.crouchBack();
+					JsonObject f = new JsonObject();
+					f.addProperty("from", who);
+					sendToMind(Protocol.event(botId, "crouch", f));
+				}
+			}
 		} catch (RuntimeException e) {
 			LOGGER.error("Erro no tick da personagem; a habilidade atual foi parada.", e);
 			companions.abortSkill("deu um erro aqui dentro: " + e.getClass().getSimpleName());

@@ -33,6 +33,13 @@ public final class PlayerWatch {
 
 	private final Map<UUID, Deque<Seen>> events = new HashMap<>();
 	private final MinecraftServer server;
+	// Agachar para ela (o "carinho" dos players): viradas de agachado por player
+	private final Map<UUID, Deque<Integer>> crouches = new HashMap<>();
+	private final Map<UUID, Boolean> wasSneaking = new HashMap<>();
+	private final Map<UUID, Integer> lastCrouchEvent = new HashMap<>();
+	// Parado: última posição em que ele se mexeu e quando
+	private final Map<UUID, net.minecraft.world.phys.Vec3> lastPos = new HashMap<>();
+	private final Map<UUID, Integer> lastMoved = new HashMap<>();
 
 	public PlayerWatch(MinecraftServer server) {
 		this.server = server;
@@ -64,6 +71,38 @@ public final class PlayerWatch {
 		add(p, "attacked", BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).getPath());
 	}
 
+	/**
+	 * Chamado a cada tick: quem está agachando e levantando perto dela, olhando
+	 * para ela. Devolve os nomes de quem fez isso agora (3 vezes em 2 s).
+	 */
+	public java.util.List<String> crouching(ServerPlayer me) {
+		java.util.List<String> out = new java.util.ArrayList<>();
+		int now = server.getTickCount();
+		for (ServerPlayer p : me.level().players()) {
+			if (p == me || p instanceof CompanionPlayer || p.distanceTo(me) > 6) {
+				continue;
+			}
+			boolean sneaking = p.isShiftKeyDown();
+			boolean before = wasSneaking.getOrDefault(p.getUUID(), false);
+			wasSneaking.put(p.getUUID(), sneaking);
+			if (!sneaking || before) {
+				continue;
+			}
+			Deque<Integer> q = crouches.computeIfAbsent(p.getUUID(), k -> new ArrayDeque<>());
+			q.addLast(now);
+			while (!q.isEmpty() && now - q.peekFirst() > 40) {
+				q.removeFirst();
+			}
+			boolean facing = dev.vry.waifuscam.control.Controls.aimed(p, me.getEyePosition(), 35);
+			if (q.size() >= 3 && facing && now - lastCrouchEvent.getOrDefault(p.getUUID(), -1000) > 200) {
+				lastCrouchEvent.put(p.getUUID(), now);
+				q.clear();
+				out.add(p.getGameProfile().name());
+			}
+		}
+		return out;
+	}
+
 	/** Resumo do último minuto de cada player perto dela, para o state. */
 	public JsonArray summary(ServerPlayer me, double radius) {
 		JsonArray out = new JsonArray();
@@ -77,6 +116,14 @@ public final class PlayerWatch {
 			o.addProperty("distance", Math.round(p.distanceTo(me) * 10) / 10.0);
 			o.addProperty("underground", !p.level().canSeeSky(p.blockPosition()) && p.getY() < 60);
 			o.addProperty("y", p.getBlockY());
+			o.addProperty("sleeping", p.isSleeping());
+			var pos = p.position();
+			var before = lastPos.get(p.getUUID());
+			if (before == null || before.distanceTo(pos) > 1.0) {
+				lastPos.put(p.getUUID(), pos);
+				lastMoved.put(p.getUUID(), now);
+			}
+			o.addProperty("idle_seconds", (now - lastMoved.getOrDefault(p.getUUID(), now)) / 20);
 			Map<String, Map<String, Integer>> counts = new LinkedHashMap<>();
 			Deque<Seen> q = events.get(p.getUUID());
 			if (q != null) {

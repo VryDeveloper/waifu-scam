@@ -220,6 +220,7 @@ waifu-scam/
 | 11 · Aventura 🧪 | Arco e flecha com mira de verdade, defende quem ela acompanha, tocha nas cavernas | Te protege numa caverna |
 | 12 · Construir 🧪 | Casinha 5x5 com porta e tocha, ponte até o outro lado | "Constrói uma casa pra gente" vira casa de verdade |
 | 13 · Ajudar no que você faz 🧪 | Ela vê o que você está fazendo (cortando árvore, construindo, minerando, caverna, luta) e ajuda nisso | Você corta árvore e ela vem cortar junto |
+| 14 · Momentos juntos 🧪 | Agacha de volta, vem ficar pertinho, traz flor, dorme quando você dorme, lembra datas e momentos | Ela te dá uma flor sem você pedir |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

@@ -235,6 +235,13 @@ public final class CompanionManager {
 	 * para de receber tick(), mas continua na lista de players até o respawn.
 	 * Por isso a contagem do respawn também fica aqui, e não nele.
 	 */
+	private int crouchBack;
+
+	/** Ela agacha de volta (responder o carinho), por alguns instantes. */
+	public void crouchBack() {
+		crouchBack = 36;
+	}
+
 	public void tick() {
 		controls.release();
 		CompanionPlayer player = player();
@@ -274,6 +281,10 @@ public final class CompanionManager {
 			}
 		} else {
 			lookAtNearestPlayer(player);
+		}
+		if (crouchBack > 0) {
+			crouchBack--;
+			controls.sneak((crouchBack / 6) % 2 == 0); // agacha, levanta, agacha...
 		}
 		reflexes.after(ctx);
 	}

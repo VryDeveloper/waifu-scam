@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .. import protocol as p
+from .bonding import bond_goal, partner_sleeping
 from .goals import Goal, choose
 from .helping import help_goal, wants_company, who
 from .needs import Needs, assess, dusk
@@ -106,12 +107,14 @@ class Will:
     _hold_until: float = field(default=float("-inf"))
     _escort_id: str | None = None  # follow que ela começou sozinha (caverna, luta)
     _escort_ok_at: float = 0.0
+    sleep_retry_at: float = field(default=float("-inf"))
     last_help_announce: float = field(default=float("-inf"))
 
     def __post_init__(self) -> None:
         now = self.clock()
         self.last_busy = now
         self.last_social = now
+        self._blocked_until["bond:flower"] = now + 20 * 60  # a primeira flor só depois de um tempo juntos
 
     # ---- o que os outros avisam --------------------------------------------------
 
@@ -172,6 +175,19 @@ class Will:
             return
         skills = {sk.name for sk in (getattr(mouth, "skills", None) or [])}
 
+        # 0) ele foi dormir: ela vai dormir também (na cama mais perto, de preferência do lado dele)
+        sleeper = partner_sleeping(s, self.beloved)
+        if sleeper and "sleep" in skills and now >= self.sleep_retry_at:
+            self.sleep_retry_at = now + 60
+            self.last_busy = now
+            await self._run(
+                mouth,
+                instruction=f"{sleeper} foi dormir e você vai deitar também, pertinho. Diga algo curtinho e carinhoso.",
+                fallback="boa noite, durma bem",
+                action=("sleep", {}),
+            )
+            return
+
         # 1) noite chegando: abrigo, sem pensar (é instinto)
         night_soon = dusk(s.get("time_of_day")) and s.get("dimension", "minecraft:overworld") == "minecraft:overworld"
         if not night_soon:
@@ -228,12 +244,17 @@ class Will:
             goal = help_goal(s, self.beloved) if self.config.helpful else None
             helping = goal is not None and goal.key not in self.blocked() and goal.skill in skills
             if not helping:
+                goal = bond_goal(s, self.beloved)  # carinho: ficar pertinho, trazer uma flor
+                helping = goal is not None and goal.key not in self.blocked() and goal.skill in skills
+            if not helping:
                 goal = choose(s, self.weights, self.blocked(), skills)
             if goal is not None:
                 self.last_busy = now
                 if helping:
                     # Ajudar alguém merece um comentário de vez em quando ("vou te ajudar com a madeira").
                     speak = now - self.last_help_announce >= self.config.help_announce_every
+                    if goal.key == "bond:flower":
+                        speak = False  # surpresa: ela fala quando entregar
                     if speak:
                         self.last_help_announce = now
                 else:
@@ -243,8 +264,8 @@ class Will:
                 skill_id = await self._run(
                     mouth,
                     instruction=(
-                        f"Você viu o que estão fazendo e decidiu sozinha: {goal.why}. Diga algo curtinho e carinhoso "
-                        "para quem você está ajudando (sem explicar passo a passo)."
+                        f"Você decidiu sozinha: {goal.why}. Diga algo curtinho e carinhoso para ele "
+                        "(sem explicar passo a passo)."
                         if helping
                         else f"Ninguém pediu nada e você decidiu sozinha: {goal.why}. Se quiser, solte um "
                         "comentário curtinho e natural (não explique o que vai fazer)."

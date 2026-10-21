@@ -112,6 +112,10 @@ Mensagens novas: `query` (Mente → Corpo: `id`, `query`, `args`) e `query.resul
 
 `state` ganha `players_activity`: para cada player a até 48 blocos, o último minuto do que ele fez — `broke` (blocos quebrados, `{"oak_log": 3}`), `placed` (bloco na mão ao clicar num bloco, isto é, construindo), `attacked` (bichos atacados), mais `distance`, `y` e `underground`.
 
+## Fase 14: momentos juntos
+
+Evento novo do Corpo: `event` `crouch` (`from`) quando um player agacha e levanta 3 vezes em 2 s olhando para ela (ela agacha de volta sozinha). Em `players_activity`, cada player ganha `sleeping` e `idle_seconds` (há quanto tempo não sai do lugar).
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

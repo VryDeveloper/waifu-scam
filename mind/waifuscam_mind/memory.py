@@ -33,6 +33,7 @@ MAX_NOTES = 60
 MAX_PERSON_NOTES = 12
 MAX_DIARY = 14
 MAX_HISTORY = 30
+MAX_MOMENTS = 30
 MAX_SPOTS_PER_BLOCK = 16
 SPOT_CLUSTER = 3  # blocos do mesmo tipo a até 3 de distância contam como um lugar só
 SAVE_EVERY = 20.0  # segundos entre gravações quando só mudou "visto por último"
@@ -85,6 +86,7 @@ class Memory:
         # mundo → bloco → [[x, y, z, dimensão, quando viu]]
         self.resources: dict[str, dict[str, list[list[Any]]]] = {}
         self.settings: dict[str, Any] = {}  # ajustes feitos no jogo (/waifu autonomy off)
+        self.moments: list[dict[str, Any]] = []  # momentos especiais de vocês: {key, when, text}
         self._dirty = False
         self._last_save = 0.0
         self.load()
@@ -107,6 +109,7 @@ class Memory:
         self.history = list(data.get("history") or [])
         self.resources = dict(data.get("resources") or {})
         self.settings = dict(data.get("settings") or {})
+        self.moments = list(data.get("moments") or [])
         log.info(
             "Memória carregada: %d lugares, %d pessoas, %d notas, %d dias no diário",
             len(self.places),
@@ -130,6 +133,7 @@ class Memory:
             "history": self.history[-MAX_HISTORY:],
             "resources": self.resources,
             "settings": self.settings,
+            "moments": self.moments,
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
@@ -170,6 +174,16 @@ class Memory:
         if self.places.pop(slug(name), None) is None:
             return False
         self._changed()
+        return True
+
+    def moment(self, key: str, text: str) -> bool:
+        """Guarda um momento especial (uma vez por key: "a primeira casa"). True se é novo."""
+        if any(m.get("key") == key for m in self.moments):
+            return False
+        self.moments.append({"key": key, "when": self._clock(), "text": text})
+        del self.moments[:-MAX_MOMENTS]
+        self._changed()
+        log.info("Momento especial: %s", text)
         return True
 
     def set(self, key: str, value: Any) -> None:
@@ -299,6 +313,9 @@ class Memory:
         if self.notes:
             lines.append("## Coisas que você anotou")
             lines += [f"- {n}" for n in self.notes[-8:]]
+        if self.moments:
+            lines.append("## Momentos especiais de vocês (traga de volta de vez em quando, com carinho)")
+            lines += [f"- {m['text']} (há {_ago(self._clock() - float(m.get('when', 0)))})" for m in self.moments[-6:]]
         if self.diary:
             lines.append("## Seu diário (mais recente por último)")
             lines += [f"- {d.text}" for d in self.diary[-3:]]

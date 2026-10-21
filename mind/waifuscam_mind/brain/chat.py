@@ -42,7 +42,14 @@ CONVERSATION_WINDOW = 45.0  # segundos em que a mesma pessoa ainda está "na con
 DEATH_COMMENT_COOLDOWN = 20.0
 FAILURE_COMMENT_COOLDOWN = 15.0
 DANGER_COMMENT_COOLDOWN = 90.0
-FIND_COMMENT_COOLDOWN = 120.0  # achado raro (diamante, vila...): no máximo um comentário a cada 2 min
+FIND_COMMENT_COOLDOWN = 120.0
+CROUCH_COMMENT_COOLDOWN = 45.0
+ANNIVERSARIES = {
+    7: "uma semana",
+    30: "um mês",
+    100: "100 dias",
+    365: "um ano",
+}  # achado raro (diamante, vila...): no máximo um comentário a cada 2 min
 DIARY_MIN_INTERVAL = 600.0  # segundos reais entre entradas do diário
 DIARY_MIN_LINES = 6  # falas novas desde a última entrada
 # "aqui é a nossa base", "lembra desse lugar como mina": guarda mesmo se a IA esquecer a tag
@@ -298,6 +305,7 @@ class ChatBrain:
         self._last_budget_notice = float("-inf")
         self._last_find_comment = float("-inf")
         self._last_busy_notice = float("-inf")
+        self._last_crouch_comment = float("-inf")
         self._ended: dict[str, tuple[bool, str, bool]] = {}  # id → (falhou, motivo, cancelada)
         self._told_failure: set[str] = set()
         self._world: str | None = None  # mundo do último state
@@ -329,7 +337,8 @@ class ChatBrain:
                 self._note("você entrou no mundo")
                 await self._speak(
                     mouth,
-                    instruction="Você acabou de entrar no mundo. Cumprimente quem está online em uma frase curta.",
+                    instruction="Você acabou de entrar no mundo. Cumprimente quem está online em uma frase curta."
+                    + self._anniversary(),
                     fallback=self.greeting,
                 )
             case "died":
@@ -363,6 +372,18 @@ class ChatBrain:
                         int(data["y"]),
                         int(data["z"]),
                         str(data.get("dimension", "minecraft:overworld")),
+                    )
+            case "crouch":
+                who = str(data.get("from", "alguém"))
+                first = self.memory.moment(f"first_crouch:{who}", f"a primeira vez que {who} agachou pra você")
+                if self._clock() - self._last_crouch_comment >= CROUCH_COMMENT_COOLDOWN or first:
+                    self._last_crouch_comment = self._clock()
+                    await self._speak(
+                        mouth,
+                        instruction=f"{who} agachou várias vezes olhando pra você (é o carinho dos players) e você "
+                        "agachou de volta. Reaja bem curtinho, carinhosa ou tímida.",
+                        partner=who,
+                        allow_action=False,
                     )
             case "set_autonomy":
                 on = bool(data.get("enabled"))
@@ -523,6 +544,22 @@ class ChatBrain:
                 self._note(f"você terminou: {msg.skill}")
             if msg.skill == "build":
                 self._remember_house(mouth)
+                self.memory.moment("first_house", "a primeira casinha que vocês construíram juntos")
+            if started is not None and msg.skill == "give" and str(started[1].get("item", "")) == "#small_flowers":
+                to = started[1].get("player", "ele")
+                self.memory.moment("first_flower", f"a primeira flor que você deu para {to}")
+                await self._speak(
+                    mouth,
+                    instruction=f"Você acabou de dar uma flor de presente para {to}, sem ele pedir. "
+                    "Diga algo curtinho, romântico e um pouco tímido.",
+                    partner=str(to),
+                    allow_action=False,
+                )
+                return
+            if started is not None and msg.skill == "sleep" and self.character.beloved:
+                self.memory.moment(
+                    "first_night", f"a primeira noite que você dormiu pertinho de {self.character.beloved}"
+                )
             # Só conta que terminou quando foi alguém que pediu; o que ela faz sozinha, faz em silêncio.
             if (
                 started is not None
@@ -557,6 +594,19 @@ class ChatBrain:
             instruction=f"Você tentou fazer '{msg.skill}', mas não deu: {msg.reason}. Comente em uma frase curta.",
             partner=started[2],
         )
+
+    def _anniversary(self) -> str:
+        """Hoje faz uma semana/um mês/100 dias que vocês se conheceram? (uma vez só)."""
+        who = self.character.beloved
+        person = self.memory.people.get(who) if who else None
+        if person is None or not person.first_met:
+            return ""
+        days = int((self.memory._clock() - person.first_met) // 86400)
+        if days not in ANNIVERSARIES or self.memory.settings.get("celebrated") == days:
+            return ""
+        self.memory.set("celebrated", days)
+        self.memory.moment(f"anniversary:{days}", f"{ANNIVERSARIES[days]} desde que você conheceu {who}")
+        return f" Hoje faz {ANNIVERSARIES[days]} que você conheceu {who}: lembre disso com carinho."
 
     def _doing_own_goal(self, mouth: Mouth) -> bool:
         """O que ela está fazendo agora foi ideia dela (não pedido de ninguém)?"""
