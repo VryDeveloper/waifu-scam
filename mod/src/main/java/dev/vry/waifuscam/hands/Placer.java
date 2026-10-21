@@ -44,13 +44,13 @@ public final class Placer {
 	public static BlockPos placeNear(ServerPlayer player, Item item) {
 		ServerLevel level = player.level();
 		BlockPos feet = player.blockPosition();
-		for (int r = 1; r <= 2; r++) {
+		for (int r = 1; r <= 3; r++) {
 			for (int dx = -r; dx <= r; dx++) {
 				for (int dz = -r; dz <= r; dz++) {
 					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
 						continue;
 					}
-					for (int dy = 0; dy >= -1; dy--) {
+					for (int dy : new int[] {0, -1, 1}) {
 						BlockPos target = feet.offset(dx, dy, dz);
 						if (canPlaceAt(level, target, player) && place(player, item, target)) {
 							return target;

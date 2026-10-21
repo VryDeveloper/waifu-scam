@@ -183,7 +183,7 @@ async def test_refusing_means_no_action(lumi):
 
 async def test_action_without_words_still_acts(lumi):
     mouth = FakeMouth()
-    await brain(lumi, FakeLLM("[ação: stop]")).on_event(mouth, chat("Vry", "para"))
+    await brain(lumi, FakeLLM("[ação: stop]")).on_event(mouth, chat("Vry", "deixa isso quieto um pouco"))
     assert mouth.started == [("stop", {})] and mouth.said == []
 
 
@@ -302,3 +302,22 @@ def test_glued_repetition_is_cleaned():
         "não deu, preciso de fornalha."
     ]
     assert clean_reply("oi\noi", ["Lumi"]) == ["oi"]
+
+
+async def test_stop_works_right_away_even_without_ai(lumi):
+    mouth = FakeMouth()
+    b = brain(lumi, FakeLLM(fail=True))
+    await b.on_event(mouth, chat("Vry", "lumi para"))
+    assert mouth.started == [("cancel", {})] and mouth.said == ["tá, parei"]
+
+
+async def test_follow_without_ai_still_follows(lumi):
+    mouth = FakeMouth()
+    await brain(lumi, FakeLLM(fail=True)).on_event(mouth, chat("Vry", "lumi me segue"))
+    assert mouth.started == [("follow", {"player": "Vry"})] and mouth.said == ["bora, tô indo atrás de você"]
+
+
+async def test_busy_notice_when_ai_is_out(lumi):
+    mouth = FakeMouth()
+    await brain(lumi, FakeLLM(fail=True)).on_event(mouth, chat("Vry", "lumi, o que você acha dessa casa?"))
+    assert mouth.said == ["pera, minha cabeça deu uma travada. me fala de novo daqui a pouquinho?"]

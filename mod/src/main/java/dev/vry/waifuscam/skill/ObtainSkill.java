@@ -34,6 +34,7 @@ public final class ObtainSkill implements Skill {
 	private int failures;
 	private int pause;
 	private String failure;
+	private boolean ignoreNearbyTable;
 
 	public ObtainSkill(Choice wanted, int count, String label) {
 		this.wanted = wanted;
@@ -61,8 +62,11 @@ public final class ObtainSkill implements Skill {
 			}
 			if (s == Status.FAILED) {
 				String why = child.failureReason();
+				boolean unreachableTable = child instanceof CraftSkill c && c.tableUnreachable();
 				child = null;
-				if (++failures >= MAX_FAILURES) {
+				if (unreachableTable && !ignoreNearbyTable) {
+					ignoreNearbyTable = true; // faz e põe uma bancada dela, em vez de insistir na que não alcança
+				} else if (++failures >= MAX_FAILURES) {
 					return fail(why != null ? why : "não deu certo " + childLabel);
 				}
 			} else {
@@ -79,7 +83,11 @@ public final class ObtainSkill implements Skill {
 
 		GameKnowledge knowledge = GameKnowledge.of(ctx.server());
 		Map<String, Integer> inv = Stacks.counts(ctx.player().getInventory());
-		Plan plan = new Planner(knowledge).plan(wanted, count, inv, Queries.world(ctx.player()));
+		Planner.World world = Queries.world(ctx.player());
+		if (ignoreNearbyTable) {
+			world = new Planner.World(false, world.furnaceNearby(), world.stored());
+		}
+		Plan plan = new Planner(knowledge).plan(wanted, count, inv, world);
 		if (plan.done()) {
 			return Status.SUCCEEDED;
 		}

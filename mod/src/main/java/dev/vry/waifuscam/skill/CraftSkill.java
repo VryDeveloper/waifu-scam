@@ -35,6 +35,12 @@ public final class CraftSkill implements Skill {
 	private int done;
 	private int wait = Human.craft();
 	private String failure;
+	private boolean tableUnreachable;
+
+	/** A bancada por perto existe mas ela não chega nela (e não tem outra para pôr). */
+	public boolean tableUnreachable() {
+		return tableUnreachable;
+	}
 
 	public CraftSkill(CraftRecipe recipe, int times, GameKnowledge knowledge) {
 		this.recipe = recipe;
@@ -108,6 +114,7 @@ public final class CraftSkill implements Skill {
 			// Bancada inalcançável: tenta colocar uma nova, se tiver.
 			BlockPos placed = Placer.placeNear(ctx.player(), Items.CRAFTING_TABLE);
 			if (placed == null) {
+				tableUnreachable = true; // o obtain replaneja fazendo uma bancada nova
 				return fail("não consigo chegar na bancada");
 			}
 			table = placed;

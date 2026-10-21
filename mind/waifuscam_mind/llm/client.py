@@ -51,7 +51,9 @@ class LLMClient:
     def _models(self, p: Provider, background: bool) -> list[str]:
         """Modelos do provedor nesta vez: os que bateram no limite há pouco vão para o fim."""
         now = time.monotonic()
-        return sorted(p.models_for(background), key=lambda m: self._cooldown_until.get(f"{p.name}:{m}", 0) > now)
+        models = p.models_for(background)
+        ready = [m for m in models if self._cooldown_until.get(f"{p.name}:{m}", 0) <= now]
+        return ready or models  # todos no limite: tenta mesmo assim (a cota por minuto volta rápido)
 
     async def chat(self, messages: list[dict], *, max_tokens: int = 200, background: bool = False) -> str:
         """background=True usa o modelo de fundo (cota separada) e nunca espera o limite liberar."""
@@ -83,8 +85,13 @@ class LLMClient:
                         extra_body=_extra_body_model(p, model),
                     )
                 except openai.RateLimitError as e:
-                    self._cooldown_until[f"{p.name}:{model}"] = time.monotonic() + RATE_LIMIT_COOLDOWN
-                    waits.append(_retry_after(e))
+                    # Limite do dia (TPD) pede para esperar muitos minutos: respeita, para não
+                    # gastar tempo batendo de novo; o de minuto volta em segundos.
+                    asked = _retry_after(e, cap=6 * 3600)
+                    self._cooldown_until[f"{p.name}:{model}"] = time.monotonic() + max(RATE_LIMIT_COOLDOWN, asked)
+                    if asked > 120:
+                        log.warning("%s/%s bateu no limite do dia; volta em %.0f min", p.name, model, asked / 60)
+                    waits.append(min(asked, 60.0))
                     errors.append(f"{p.name}/{model}: limite atingido")
                     limited += 1
                     continue
@@ -117,11 +124,11 @@ class _AllRateLimited(Exception):
         self.wait = wait
 
 
-def _retry_after(e: openai.RateLimitError) -> float:
+def _retry_after(e: openai.RateLimitError, cap: float = 60.0) -> float:
     """Quanto o provedor pediu para esperar (cabeçalho retry-after); 5 s se não disse."""
     try:
         value = e.response.headers.get("retry-after") if getattr(e, "response", None) is not None else None
-        return max(0.5, min(60.0, float(value))) if value else 5.0
+        return max(0.5, min(cap, float(value))) if value else 5.0
     except (TypeError, ValueError, AttributeError):
         return 5.0
 

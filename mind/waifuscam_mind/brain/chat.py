@@ -72,6 +72,29 @@ EMOJI = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b00-\u2bff\ufe0f\u200d
 STAY = re.compile(
     r"\b(fica\s+(aqui|a[íi]|parada|quieta)|me\s+espera|espera\s+(aqui|a[íi])|n[ãa]o\s+sai)\b", re.IGNORECASE
 )
+# Comandos curtos que funcionam na hora, mesmo sem IA ("lumi para", "me segue", "vem aqui").
+QUICK_FILLER = {
+    "ai",
+    "ja",
+    "agora",
+    "tudo",
+    "isso",
+    "por",
+    "favor",
+    "pfv",
+    "pf",
+    "ae",
+    "ei",
+    "oi",
+    "mano",
+    "logo",
+    "pls",
+}
+QUICK = {
+    "stop": ({"para", "pare", "parar", "stop", "chega", "cancela"}, set(), "tá, parei"),
+    "follow": ({"segue", "siga", "seguir"}, {"me", "eu", "mim", "comigo"}, "bora, tô indo atrás de você"),
+    "come": ({"vem", "venha", "volta"}, {"aqui", "ca", "comigo", "pra", "perto"}, "tô indo aí"),
+}
 WORK_SKILLS = {"obtain", "craft", "collect", "give", "hunt", "deposit", "withdraw"}
 PLAN_SKILLS = {"obtain", "craft", "give"}  # antes de começar, confere com o corpo se dá para fazer
 DONE_COMMENT_COOLDOWN = 20.0
@@ -343,6 +366,8 @@ class ChatBrain:
                 self.history.append({"role": "user", "content": f"{sender}: {text}"})
                 self._seq += 1
                 online = mouth.state is not None and mouth.state.online
+                if online and self.is_addressed(sender, text, mouth.state) and await self._quick(mouth, sender, text):
+                    return
                 if online and self.is_addressed(sender, text, mouth.state):
                     plans = await self._plans_for(mouth, text)
                     await self._speak(mouth, partner=sender, seq=self._seq, plans=plans)
@@ -510,6 +535,7 @@ class ChatBrain:
         seq: int | None = None,
         allow_action: bool = True,
         plans: dict[str, dict] | None = None,
+        fallback_action: tuple[str, dict] | None = None,
     ) -> None:
         # Fala que não é resposta (comentário, vontade própria) nunca entra na frente da conversa:
         # se ela já está pensando em outra coisa, essa fala é deixada para lá.
@@ -559,6 +585,8 @@ class ChatBrain:
                 reply = await self.llm.chat(messages, max_tokens=400, background=background)
             except AllProvidersFailed as e:
                 log.warning("Nenhum provedor de IA respondeu: %s", e)
+                if fallback_action is not None:
+                    await self._start(mouth, *fallback_action, partner)
                 if fallback:
                     await mouth.say(fallback)
                 elif not background and self._clock() - self._last_busy_notice >= BUSY_NOTICE_EVERY:
@@ -679,6 +707,51 @@ class ChatBrain:
                 about = [n for n in self.memory.people if re.search(rf"\b{re.escape(n)}\b", value, re.IGNORECASE)]
                 self.memory.note(value, about)
         return MEMORY_TAG.sub("", text)
+
+    async def _quick(self, mouth: Mouth, sender: str, text: str) -> bool:
+        """Comando curto ("lumi para"): o corpo obedece na hora, sem esperar a IA. True se era um."""
+        from ..items import normalize
+
+        words = [w for w in normalize(text).split() if w not in {normalize(n) for n in self._names}]
+        words = [w for w in words if w not in QUICK_FILLER]
+        if not words or len(words) > 3:
+            return False
+        skills = {s.name for s in (getattr(mouth, "skills", None) or [])}
+        for kind, (verbs, extras, fallback) in QUICK.items():
+            if not any(w in verbs for w in words) or not all(w in verbs or w in extras for w in words):
+                continue
+            if kind == "come" and not any(w in extras for w in words):
+                continue  # "vem" sozinho pode ser outra coisa
+            if kind != "stop":
+                # Seguir/vir: quem decide é ela (pode recusar); só se a IA não responder ela vai direto.
+                skill = "follow" if kind == "follow" else "goto"
+                if skill not in skills:
+                    return False
+                plans = await self._plans_for(mouth, text)
+                await self._speak(
+                    mouth,
+                    partner=sender,
+                    seq=self._seq,
+                    plans=plans,
+                    fallback=fallback,
+                    fallback_action=(skill, {"player": sender}),
+                )
+                return True
+            # Parar é sempre na hora: quem joga precisa ter esse controle.
+            await mouth.cancel_skill()
+            self.will.hold(180)
+            self.will.promises.clear()
+            log.info("Comando rápido de %s: parar", sender)
+            self._answered_seq = self._seq
+            await self._speak(
+                mouth,
+                instruction=f"{sender} pediu ({text}) e você já obedeceu. Responda bem curtinho, do seu jeito.",
+                fallback=fallback,
+                partner=sender,
+                allow_action=False,
+            )
+            return True
+        return False
 
     async def _plans_for(self, mouth: Mouth, text: str) -> dict[str, dict]:
         """Itens citados na mensagem → como consegui-los agora (perguntando ao corpo)."""
