@@ -189,6 +189,19 @@ def resolve(
     return text, Action(spec.name, args)
 
 
+def resolve_all(
+    reply: str, skills: list[p.SkillSpec], speaker: str | None, players: list[str]
+) -> tuple[str, list[Action]]:
+    """Todas as linhas [ação: ...] válidas, na ordem (pedido grande: "faz a armadura toda")."""
+    actions: list[Action] = []
+    for m in ACTION_LINE.finditer(reply):
+        spec = next((s for s in skills if s.name == m.group(1).lower()), None)
+        args = parse_args(spec, m.group(2).strip(), speaker, players) if spec else None
+        if spec is not None and args is not None:
+            actions.append(Action(spec.name, args))
+    return ACTION_LINE.sub("", reply), actions
+
+
 def resolve_later(
     reply: str, skills: list[p.SkillSpec], speaker: str | None, players: list[str]
 ) -> tuple[str, Action | None]:

@@ -178,6 +178,20 @@ NUMBERS = {
     "oito": 8, "nove": 9, "dez": 10, "doze": 12, "quinze": 15, "vinte": 20, "trinta": 30,
 }  # fmt: skip
 MAX_WORDS = 6
+# "armadura completa de ferro" = as quatro peças; "ferramentas de pedra" = picareta, machado, pá e espada
+MATERIALS = {
+    "couro": "leather", "ferro": "iron", "ouro": "golden", "diamante": "diamond", "netherite": "netherite",
+    "malha": "chainmail", "cobre": "copper", "pedra": "stone", "madeira": "wooden",
+}  # fmt: skip
+KITS = re.compile(
+    r"\b(armaduras?|ferramentas?)(?: completas?| inteiras?| todas?)?(?: de| do| da)? (" + "|".join(MATERIALS) + r")\b"
+)
+KIT_PIECES = {
+    "armadura": ("helmet", "chestplate", "leggings", "boots"),
+    "ferramenta": ("pickaxe", "axe", "shovel", "sword"),
+}
+# "tem ferro no baú": o baú é onde está, não o que pediram
+PLACE_WORDS = {"no", "na", "nos", "nas", "do", "da", "dos", "das", "num", "numa", "pro", "pra"}
 
 
 def normalize(text: str) -> str:
@@ -191,6 +205,7 @@ class ItemNames:
         if names:
             self.names.update(names)
         self.entities: dict[str, str] = {**BASIC_ENTITIES, **(entities or {})}
+        self._has_game_names = bool(names)
         self.index: dict[str, str] = {}
         self._build()
 
@@ -243,10 +258,19 @@ class ItemNames:
             return raw
         return self.index.get(normalize(raw))
 
-    def find(self, text: str, limit: int = 2) -> list[tuple[str, int]]:
+    def find(self, text: str, limit: int = 4) -> list[tuple[str, int]]:
         """Itens citados numa frase, com a quantidade quando dita ("faz 3 tochas")."""
-        words = normalize(text).split()
+        norm = normalize(text)
         found: list[tuple[str, int]] = []
+        for m in KITS.finditer(norm):
+            kind = m.group(1).rstrip("s")
+            material = MATERIALS[m.group(2)]
+            for piece in KIT_PIECES[kind]:
+                item = f"{material}_{piece}"
+                if (item in self.names or not self._has_game_names) and item not in (f for f, _ in found):
+                    found.append((item, 1))
+        norm = KITS.sub(" ", norm)
+        words = norm.split()
         i = 0
         while i < len(words) and len(found) < limit:
             for n in range(min(MAX_WORDS, len(words) - i), 0, -1):
@@ -254,6 +278,9 @@ class ItemNames:
                 item = self.index.get(phrase)
                 if item is None or (n == 1 and phrase in AMBIGUOUS):
                     continue
+                if i > 0 and words[i - 1] in PLACE_WORDS and n == 1:
+                    i += n - 1
+                    break  # "no baú", "da fornalha": é lugar, não pedido
                 if all(item != f for f, _ in found):
                     found.append((item, _count(words, i)))
                 i += n - 1

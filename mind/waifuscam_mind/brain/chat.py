@@ -27,7 +27,7 @@ from ..items import ItemNames
 from ..llm import AllProvidersFailed, Budget, LLMClient
 from ..memory import Memory
 from ..plugins import Plugins
-from .actions import describe_actions, resolve, resolve_later
+from .actions import describe_actions, resolve, resolve_all, resolve_later
 from .base import Mouth
 from .needs import describe_needs
 from .recipes import describe_plans
@@ -67,6 +67,7 @@ REQUEST = re.compile(
     re.IGNORECASE,
 )
 ACTION_LINE_ANY = re.compile(r"\[[^\]]*\]")
+EMOJI = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b00-\u2bff\ufe0f\u200d]+")
 # "fica aqui", "me espera": ela não sai sozinha atrás dos objetivos dela por um tempo
 STAY = re.compile(
     r"\b(fica\s+(aqui|a[íi]|parada|quieta)|me\s+espera|espera\s+(aqui|a[íi])|n[ãa]o\s+sai)\b", re.IGNORECASE
@@ -76,6 +77,7 @@ PLAN_SKILLS = {"obtain", "craft", "give"}  # antes de começar, confere com o co
 DONE_COMMENT_COOLDOWN = 20.0
 MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
+BUSY_NOTICE_EVERY = 60.0  # aviso de "travei" (IA sem cota) no máximo a cada minuto
 MAX_LINE = 240
 MAX_TYPING_DELAY = 2.5
 
@@ -87,6 +89,7 @@ CHAT_RULES = """
   consegue. A ação só começa quando você coloca a linha; nunca diga que já fez ou terminou: o corpo avisa.
 - Você decide: topa (coloque a ação), adia ([depois: ...] e diga quando) ou recusa. Adie se tiver algo urgente.
 - "Me dá/passa X" = give. Pedido grande ("faz uma picareta de pedra") é uma ação só.
+  Várias coisas ("faz a armadura toda"): uma linha [ação: ...] para cada, na ordem; ela faz uma depois da outra.
 - Memória: [lembrar: nome] guarda o lugar onde você está, [esquecer: nome] apaga, [nota: frase] guarda um fato.
 - Você só enxerga o que está em "O que você está vendo agora". Do resto, só sabe o que lembra.
 - "Do jogo" é a verdade sobre receitas e sobre o que dá para fazer agora: se dá, coloque a ação com o id que
@@ -171,6 +174,8 @@ def clean_reply(text: str, names: list[str]) -> list[str]:
         for name in filter(None, names):
             line = re.sub(rf"^\s*(<\s*{re.escape(name)}\s*>|{re.escape(name)}\s*:)\s*", "", line, flags=re.IGNORECASE)
         line = re.sub(r"[*_`#]+", "", line).strip()
+        line = EMOJI.sub("", line)  # o chat do Minecraft mostra emoji como quadradinho
+        line = re.sub(r"\s{2,}", " ", line).strip()
         if len(line) >= 2 and line[0] == line[-1] and line[0] in "\"'“”":
             line = line[1:-1].strip()
         line = line.strip("“”").strip()
@@ -247,6 +252,7 @@ class ChatBrain:
         self._last_text: dict[str, str] = {}  # última fala de cada player
         self._last_budget_notice = float("-inf")
         self._last_find_comment = float("-inf")
+        self._last_busy_notice = float("-inf")
         self._world: str | None = None  # mundo do último state
         self._seeded = False  # o corpo já recebeu as lembranças de blocos deste mundo?
         self._state: p.State | None = None
@@ -555,12 +561,21 @@ class ChatBrain:
                 log.warning("Nenhum provedor de IA respondeu: %s", e)
                 if fallback:
                     await mouth.say(fallback)
+                elif not background and self._clock() - self._last_busy_notice >= BUSY_NOTICE_EVERY:
+                    # Alguém falou com ela e a IA não veio: melhor avisar do que ficar muda.
+                    self._last_busy_notice = self._clock()
+                    await mouth.say("pera, minha cabeça deu uma travada. me fala de novo daqui a pouquinho?")
                 return
 
             log.info("IA (%s): %s", "fundo" if background else "chat", reply.replace("\n", " | ")[:300])
             players = [n for n in (mouth.state.model_dump().get("players", []) if mouth.state else [])]
-            text, action = resolve(reply, skills, partner, players)
+            text, actions = resolve_all(reply, skills, partner, players)
+            action = actions[0] if actions else None
             text, later = resolve_later(text, skills, partner, players)
+            for extra in actions[1:4]:
+                # Mais de uma ação: a primeira agora, as outras em seguida, na ordem.
+                extra = self._item_ids(self._resolve_places(extra, players))
+                self.will.promise(extra.skill, extra.args, partner)
             text = self._memory_tags(text, mouth, players)
             action = self._resolve_places(action, players)
             action = self._give_if_asked(action, partner, skills)

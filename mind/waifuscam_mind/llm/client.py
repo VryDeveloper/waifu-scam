@@ -25,7 +25,7 @@ _FALLBACK_ERRORS = (
 )
 
 RATE_LIMIT_COOLDOWN = 60  # segundos que um provedor limitado vai para o fim da fila
-MAX_RATE_WAIT = 12.0  # na conversa, vale esperar a cota liberar em vez de ficar muda
+MAX_RATE_WAIT = 25.0  # na conversa, vale esperar a cota liberar em vez de ficar muda
 
 
 class AllProvidersFailed(RuntimeError):
@@ -48,6 +48,11 @@ class LLMClient:
         # Ordenação estável: quem está em cooldown vai para o fim, mas ainda é tentado.
         return sorted(self.providers, key=lambda p: self._cooldown_until.get(p.name, 0) > now)
 
+    def _models(self, p: Provider, background: bool) -> list[str]:
+        """Modelos do provedor nesta vez: os que bateram no limite há pouco vão para o fim."""
+        now = time.monotonic()
+        return sorted(p.models_for(background), key=lambda m: self._cooldown_until.get(f"{p.name}:{m}", 0) > now)
+
     async def chat(self, messages: list[dict], *, max_tokens: int = 200, background: bool = False) -> str:
         """background=True usa o modelo de fundo (cota separada) e nunca espera o limite liberar."""
         try:
@@ -66,32 +71,40 @@ class LLMClient:
         errors: list[str] = []
         waits: list[float] = []
         for p in self._ordered():
-            try:
-                resp = await self._clients[p.name].chat.completions.create(
-                    model=p.model_for(background),
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=max_tokens,
-                    extra_body=_extra_body(p, background),
-                )
-            except openai.RateLimitError as e:
-                self._cooldown_until[p.name] = time.monotonic() + RATE_LIMIT_COOLDOWN
-                waits.append(_retry_after(e))
-                errors.append(f"{p.name}: limite atingido")
-                continue
-            except _FALLBACK_ERRORS as e:
-                errors.append(f"{p.name}: {type(e).__name__}")
-                continue
-            except openai.APIStatusError as e:
-                errors.append(f"{p.name}: HTTP {e.status_code}")
-                continue
+            limited = 0
+            models = self._models(p, background)
+            for model in models:
+                try:
+                    resp = await self._clients[p.name].chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=self.temperature,
+                        max_tokens=max_tokens,
+                        extra_body=_extra_body_model(p, model),
+                    )
+                except openai.RateLimitError as e:
+                    self._cooldown_until[f"{p.name}:{model}"] = time.monotonic() + RATE_LIMIT_COOLDOWN
+                    waits.append(_retry_after(e))
+                    errors.append(f"{p.name}/{model}: limite atingido")
+                    limited += 1
+                    continue
+                except _FALLBACK_ERRORS as e:
+                    errors.append(f"{p.name}/{model}: {type(e).__name__}")
+                    continue
+                except openai.APIStatusError as e:
+                    errors.append(f"{p.name}/{model}: HTTP {e.status_code}")
+                    continue
 
-            text = (resp.choices[0].message.content or "").strip() if resp.choices else ""
-            if text:
-                log.debug("Resposta de %s (%s)", p.name, p.model_for(background))
-                self._cooldown_until.pop(p.name, None)
-                return text
-            errors.append(f"{p.name}: resposta vazia")
+                text = (resp.choices[0].message.content or "").strip() if resp.choices else ""
+                if text:
+                    if model != models[0]:
+                        log.info("Resposta veio do modelo reserva %s (%s)", model, p.name)
+                    self._cooldown_until.pop(p.name, None)
+                    self._cooldown_until.pop(f"{p.name}:{model}", None)
+                    return text
+                errors.append(f"{p.name}/{model}: resposta vazia")
+            if limited == len(models):
+                self._cooldown_until[p.name] = time.monotonic() + RATE_LIMIT_COOLDOWN
 
         if waits and len(waits) == len(errors):
             raise _AllRateLimited(" | ".join(errors), min(waits))
@@ -114,9 +127,12 @@ def _retry_after(e: openai.RateLimitError) -> float:
 
 
 def _extra_body(p: Provider, background: bool) -> dict | None:
-    model = p.model_for(background)
+    return _extra_body_model(p, p.model_for(background))
+
+
+def _extra_body_model(p: Provider, model: str) -> dict | None:
     if "gpt-oss" in model:
         import os
 
         return {"reasoning_effort": os.getenv("REASONING_EFFORT", "").strip() or "low"}
-    return p.extra_body or None
+    return None  # os outros modelos recusam esse campo

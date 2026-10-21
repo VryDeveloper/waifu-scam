@@ -21,9 +21,19 @@ class Provider:
     # Modelo para o que não é conversa (pensar sozinha, diário, comentários). No Groq
     # cada modelo tem a própria cota por minuto, então separar deixa o chat mais rápido.
     background_model: str = ""
+    # Outros modelos da mesma chave, para quando o principal bater no limite por minuto.
+    # No Groq cada modelo tem a própria cota, então revezar multiplica o que ela aguenta.
+    fallback_models: tuple[str, ...] = ()
 
     def model_for(self, background: bool) -> str:
         return self.background_model if background and self.background_model else self.model
+
+    def models_for(self, background: bool) -> list[str]:
+        """O modelo do caso (conversa ou fundo) e depois os reservas, sem repetir."""
+        chain = [self.model_for(background), *self.fallback_models]
+        if background and self.background_model:
+            chain = [m for m in chain if m != self.model]  # o fundo nunca gasta a cota da conversa
+        return list(dict.fromkeys(m for m in chain if m))
 
 
 @dataclass(frozen=True)
@@ -31,11 +41,22 @@ class Preset:
     base_url: str
     default_model: str
     background_model: str = ""
+    fallback_models: tuple[str, ...] = ()
 
 
 PRESETS: dict[str, Preset] = {
-    "groq": Preset("https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "openai/gpt-oss-20b"),
-    "gemini": Preset("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-flash-latest"),
+    "groq": Preset(
+        "https://api.groq.com/openai/v1",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        ("qwen/qwen3.8-27b", "openai/gpt-oss-20b"),
+    ),
+    "gemini": Preset(
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "gemini-flash-latest",
+        "gemini-flash-lite-latest",
+        ("gemini-flash-lite-latest",),
+    ),
     "openrouter": Preset("https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free"),
     # Qualquer servidor compatível com a API da OpenAI (Ollama, LM Studio...): CUSTOM_BASE_URL
     "custom": Preset("", ""),
@@ -72,6 +93,12 @@ def load_providers(order: list[str] | None = None, model_override: str = "") -> 
         background = os.getenv(f"{prefix}_BACKGROUND_MODEL", "").strip() or (
             "" if model_override.strip() or os.getenv(f"{prefix}_MODEL", "").strip() else preset.background_model
         )
+        fallbacks = os.getenv(f"{prefix}_FALLBACK_MODELS")
+        chain = (
+            tuple(m.strip() for m in fallbacks.split(",") if m.strip())
+            if fallbacks is not None
+            else ("" if model_override.strip() else preset.fallback_models)
+        )
         if key and base_url and model:
-            providers.append(Provider(name, base_url, key, model, _extra_body_for(model), background))
+            providers.append(Provider(name, base_url, key, model, _extra_body_for(model), background, tuple(chain)))
     return providers

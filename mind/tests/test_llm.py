@@ -107,3 +107,32 @@ def test_groq_gets_a_background_model(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "a")
     [groq] = load_providers(["groq"])
     assert groq.model == "openai/gpt-oss-120b" and groq.model_for(True) == "openai/gpt-oss-20b"
+
+
+async def test_rotates_models_of_the_same_key():
+    p = Provider(
+        "groq", "https://x.invalid/v1", "k", "big", background_model="small", fallback_models=("other", "small")
+    )
+    assert p.models_for(False) == ["big", "other", "small"]
+    assert p.models_for(True) == ["small", "other"]  # fundo não gasta a cota da conversa
+    llm = LLMClient([p])
+    calls = []
+
+    async def first_limited(**kw):
+        calls.append(kw["model"])
+        if kw["model"] == "big":
+            raise _RateLimited()
+        return _reply("oi")
+
+    llm._clients["groq"].chat.completions.create = first_limited
+    assert await llm.chat([{"role": "user", "content": "x"}]) == "oi"
+    assert calls == ["big", "other"]
+    calls.clear()
+    assert await llm.chat([{"role": "user", "content": "x"}]) == "oi"
+    assert calls == ["other"]  # o que bateu no limite vai para o fim por um tempo
+
+
+def test_groq_has_reserve_models(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "a")
+    [groq] = load_providers(["groq"])
+    assert groq.models_for(False)[0] == "openai/gpt-oss-120b" and len(groq.models_for(False)) >= 2

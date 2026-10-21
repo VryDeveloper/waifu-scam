@@ -139,3 +139,29 @@ def test_chest_step_text():
     text = describe_plan(plan, ItemNames())
     assert "tirar 3 lingote de ferro do baú → craftar 1 picareta de ferro na bancada" in text
     assert "tem bancada perto" in text
+
+
+def test_armor_kit_and_chest_as_place():
+    names = ItemNames()
+    found = names.find("lumi preciso que voce faca uma armadura completa de ferro, tem materiais no bau")
+    assert [i for i, _ in found] == ["iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots"]
+    assert names.find("pega o ferro do baú") == [("iron_ingot", 1)]
+
+
+async def test_several_actions_are_done_one_after_another(lumi):  # noqa: F811
+    llm = FakeLLM("bora!\n[ação: obtain iron_helmet 1]\n[ação: obtain iron_chestplate 1]\n[ação: obtain iron_boots 1]")
+    ok = {"ok": True, "steps": []}
+    mouth = PlanningMouth({"iron_helmet": ok, "iron_chestplate": ok, "iron_leggings": ok, "iron_boots": ok})
+    b = brain(lumi, llm)
+    await b.on_event(mouth, chat("Vry", "lumi faz uma armadura de ferro"))
+    assert mouth.started == [("obtain", {"item": "iron_helmet", "count": 1})]
+    assert [pr.describe() for pr in b.will.pending()] == [
+        "obtain iron_chestplate 1 para Vry",
+        "obtain iron_boots 1 para Vry",
+    ]
+
+
+def test_emoji_is_removed():
+    from waifuscam_mind.brain.chat import clean_reply
+
+    assert clean_reply("Beep~ ⛏️ Tá certo! Deixa eu minerar 💨 <3", ["Lumi"]) == ["Beep~ Tá certo! Deixa eu minerar <3"]
