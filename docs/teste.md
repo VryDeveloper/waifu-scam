@@ -156,6 +156,20 @@ Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
 | 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
 | 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
 
+## Fase 16 — Montarias, bichos, pesca e pedidos em partes
+
+| # | Faça | Esperado |
+|---|---|---|
+| 16.1 | Entre num barco perto dela e diga `lumi entra no barco comigo` (ou `/waifu mount`) | Ela senta no segundo lugar do seu barco e vai junto |
+| 16.2 | `lumi me segue`, depois entre num barco | Ela entra junto sozinha; quando você desce, ela desce |
+| 16.3 | Cavalo domado e com sela perto: `lumi sobe no cavalo` e depois `lumi me segue` | Ela monta e vem atrás de você a cavalo |
+| 16.4 | Carrinho no trilho: `lumi entra no carrinho` | Ela entra; `lumi desce` (ou `/waifu dismount`) tira ela |
+| 16.5 | Duas vacas perto: `lumi faz as vacas terem filhote` (ou `/waifu breed cow`) | Ela arruma trigo se não tiver e dá para as duas |
+| 16.6 | Lobo selvagem perto: `lumi domestica aquele lobo pra mim` (ou `/waifu tame wolf`) | Ela dá osso até ele ficar de coleira, e o lobo fica seu |
+| 16.7 | Perto de água: `lumi pesca uns peixes` (ou `/waifu fish`) | Ela faz a vara se não tiver, joga a linha, espera afundar e puxa |
+| 16.8 | Fique conversando com ela dentro d'água | Ela fica boiando com a cabeça fora d'água |
+| 16.9 | `lumi faz uma fornalha e coloca no chão` | Ela faz e depois coloca, sem precisar pedir de novo |
+
 ## Fase 15 — Expressões
 
 Todas funcionam sem mod no cliente (seu amigo também vê). Para testar uma por uma: `/waifu emote <nome>` (hearts, wave, jump, nod, shake, shy, spin, crouch, sit, stand, happy, music).

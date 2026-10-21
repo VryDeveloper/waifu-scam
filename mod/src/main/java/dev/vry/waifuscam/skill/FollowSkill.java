@@ -65,6 +65,9 @@ public final class FollowSkill implements Skill {
 		if (++ticks % 20 == 0) {
 			lightTheWay(ctx);
 		}
+		if (riding(ctx, target, dist)) {
+			return Status.RUNNING;
+		}
 
 		if (dist <= distance) {
 			// Perto: para e fica olhando para ele.
@@ -105,6 +108,41 @@ public final class FollowSkill implements Skill {
 			sinceReplan = REPLAN_INTERVAL;
 		}
 		return Status.RUNNING;
+	}
+
+	/**
+	 * Montada ou ele montado: vai de carona no barco/camelo dele, conduz a
+	 * montaria dela atrás dele, desce quando ele desce. true = já cuidou do tick.
+	 */
+	private boolean riding(SkillContext ctx, ServerPlayer target, double dist) {
+		var me = ctx.player();
+		var mine = me.getVehicle();
+		var his = target.getVehicle();
+		if (mine == null) {
+			// Ele entrou num barco com lugar sobrando, aqui do lado: ela entra junto.
+			if (his instanceof net.minecraft.world.entity.vehicle.boat.AbstractBoat boat && dist < 5
+					&& boat.getPassengers().size() < 2) {
+				me.startRiding(boat);
+				return me.isPassenger();
+			}
+			return false;
+		}
+		if (mine == his) {
+			ctx.controls().lookAt(target.getEyePosition()); // de carona com ele
+			return true;
+		}
+		if (dev.vry.waifuscam.control.Driver.drives(me, mine) && his != null || dev.vry.waifuscam.control.Driver.drives(me, mine)
+				&& mine instanceof net.minecraft.world.entity.animal.equine.AbstractHorse) {
+			// Ela conduz a montaria dela atrás dele.
+			if (dist > distance) {
+				dev.vry.waifuscam.control.Driver.drive(me, mine, target.position(), distance);
+			}
+			ctx.controls().lookAt(target.getEyePosition());
+			return true;
+		}
+		// Estava de carona e ele desceu: desce também.
+		me.stopRiding();
+		return false;
 	}
 
 	/**

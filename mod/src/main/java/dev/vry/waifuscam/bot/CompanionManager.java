@@ -173,6 +173,11 @@ public final class CompanionManager {
 		if (me != null && !stayPut.contains(next.name()) && EscapeSkill.trapped(me)) {
 			next = new EscapeSkill.Then(new EscapeSkill(), next);
 		}
+		// Montada (barco, cavalo...): desce antes de sair andando. Seguir e pescar dá para fazer montada.
+		Set<String> mounted = Set.of("mount", "follow", "fish", "stop", "eat", "tame", "dismount");
+		if (me != null && me.isPassenger() && !mounted.contains(next.name()) && !emotes.sitting()) {
+			me.stopRiding();
+		}
 		skill = next;
 		skillId = id;
 		watchdogTicks = 0;

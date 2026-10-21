@@ -74,6 +74,10 @@ REQUEST = re.compile(
     r"acende|fecha|aperta|puxa|empilha|deposita|busca|procura|caça)\b",
     re.IGNORECASE,
 )
+# "...e coloca no chão", "põe aqui": depois de fazer, é para colocar
+PLACE_AFTER = re.compile(
+    r"\b(coloca|coloque|p[õo]e|bota|instala|monta)\b[^.?!]*\b(no ch[ãa]o|aqui|a[íi]|ali|do lado|perto)\b", re.IGNORECASE
+)
 ACTION_LINE_ANY = re.compile(r"\[[^\]]*\]")
 EMOJI = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b00-\u2bff\ufe0f\u200d]+")
 # "fica aqui", "me espera": ela não sai sozinha atrás dos objetivos dela por um tempo
@@ -136,7 +140,9 @@ CHAT_RULES = """
 - Você decide: topa (coloque a ação), adia ([depois: ...] e diga quando) ou recusa. Adie se tiver algo urgente.
 - "Faz comida", "cozinha", "assa a carne" = cook. "Me ajuda a minerar" = mine_ores.
 - "Me dá/passa X" = give. Pedido grande ("faz uma picareta de pedra") é uma ação só.
-  Várias coisas ("faz a armadura toda"): uma linha [ação: ...] para cada, na ordem; ela faz uma depois da outra.
+  Pedido em partes: uma linha [ação: ...] para cada parte, na ordem; você faz uma depois da outra.
+  Ex.: "faz uma fornalha e coloca no chão" = [ação: obtain furnace 1] e depois [ação: place furnace].
+  "faz a armadura toda" = uma linha para cada peça.
 - Memória: [lembrar: nome] guarda o lugar onde você está, [esquecer: nome] apaga, [nota: frase] guarda um fato.
 - Expressão do corpo (opcional, só quando combina, no máximo uma): [emote: coracoes], [emote: acenar],
   [emote: pular], [emote: sim], [emote: nao], [emote: timida], [emote: girar], [emote: feliz], [emote: sentar],
@@ -311,6 +317,7 @@ class ChatBrain:
         self._last_busy_notice = float("-inf")
         self._last_crouch_comment = float("-inf")
         self._ended: dict[str, tuple[bool, str, bool]] = {}  # id → (falhou, motivo, cancelada)
+        self._chain: dict[str, tuple[list, str | None]] = {}  # id → (próximas ações do mesmo pedido, para quem)
         self._told_failure: set[str] = set()
         self._world: str | None = None  # mundo do último state
         self._seeded = False  # o corpo já recebeu as lembranças de blocos deste mundo?
@@ -544,6 +551,16 @@ class ChatBrain:
             self._ended.pop(next(iter(self._ended)))
         self.will.skill_ended(msg.id, failed, failed and msg.cancelled)
         started = self._started.pop(msg.id, None)
+        chain = self._chain.pop(msg.id, None)
+        if chain is not None and isinstance(msg, p.SkillDone) and chain[0]:
+            # Pedido em várias partes ("faz a fornalha e coloca no chão"): próxima parte, já.
+            nxt, rest = chain[0][0], chain[0][1:]
+            log.info("Próxima parte do pedido: %s %s", nxt.skill, nxt.args)
+            new_id = await self._start(mouth, nxt.skill, nxt.args, chain[1])
+            if rest:
+                self._chain[new_id] = (rest, chain[1])
+            self._note(f"você terminou: {msg.skill}; agora: {nxt.skill}")
+            return
         if isinstance(msg, p.SkillDone):
             if msg.skill != "stop":
                 self._note(f"você terminou: {msg.skill}")
@@ -723,10 +740,9 @@ class ChatBrain:
             text, actions = resolve_all(reply, skills, partner, players)
             action = actions[0] if actions else None
             text, later = resolve_later(text, skills, partner, players)
-            for extra in actions[1:4]:
-                # Mais de uma ação: a primeira agora, as outras em seguida, na ordem.
-                extra = self._item_ids(self._resolve_places(extra, players))
-                self.will.promise(extra.skill, extra.args, partner)
+            # Mais de uma ação: a primeira agora, as outras logo em seguida, na ordem (sem voltar a pensar).
+            chain = [self._item_ids(self._resolve_places(extra, players)) for extra in actions[1:5]]
+            chain = self._place_after(chain, actions, skills, partner)
             text = self._memory_tags(text, mouth, players)
             action = self._resolve_places(action, players)
             action = self._give_if_asked(action, partner, skills)
@@ -762,6 +778,8 @@ class ChatBrain:
             if action is not None:
                 # Começa a andar antes de digitar: parece mais vivo.
                 started_id = await self._start(mouth, action.skill, action.args, partner)
+                if chain:
+                    self._chain[started_id] = (chain, partner)
             for i, line in enumerate(lines):
                 await self._sleep(min(MAX_TYPING_DELAY, len(line) / self.typing_speed))
                 ended = self._ended.get(started_id) if started_id and i == 0 else None
@@ -901,6 +919,19 @@ class ChatBrain:
                 plans[item] = {**result, "item": item, "count": count}
                 log.info("Plano para %d %s: %s", count, item, result.get("failure") or result.get("steps"))
         return plans
+
+    def _place_after(self, chain: list, actions: list, skills: list[p.SkillSpec], partner: str | None) -> list:
+        """Pediram "faz X e coloca no chão" e a IA só colocou o "faz": completa com o place."""
+        if not actions or partner is None or not any(sk.name == "place" for sk in skills):
+            return chain
+        if not PLACE_AFTER.search(self._last_text.get(partner, "")):
+            return chain
+        if any(a.skill == "place" for a in [*actions, *chain]):
+            return chain
+        first = self._item_ids(actions[0])
+        if first.skill in ("obtain", "craft") and "item" in first.args:
+            return [*chain, type(first)("place", {"item": first.args["item"]})]
+        return chain
 
     def _item_ids(self, action):
         """A IA às vezes escreve o item em português ("cama"): troca pelo id do jogo."""

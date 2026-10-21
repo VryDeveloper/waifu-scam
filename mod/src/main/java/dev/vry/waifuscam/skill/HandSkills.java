@@ -417,4 +417,30 @@ public final class HandSkills {
 			return failure;
 		}
 	}
+
+	/** Descer do barco, carrinho ou montaria. */
+	public static final class Dismount implements Skill {
+		@Override
+		public String name() {
+			return "dismount";
+		}
+
+		@Override
+		public String describe() {
+			return "descendo";
+		}
+
+		@Override
+		public Status tick(SkillContext ctx) {
+			if (ctx.player().isPassenger()) {
+				ctx.player().stopRiding();
+			}
+			return Status.SUCCEEDED;
+		}
+
+		@Override
+		public String failureReason() {
+			return null;
+		}
+	}
 }

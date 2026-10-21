@@ -155,10 +155,22 @@ async def test_several_actions_are_done_one_after_another(lumi):  # noqa: F811
     b = brain(lumi, llm)
     await b.on_event(mouth, chat("Vry", "lumi faz uma armadura de ferro"))
     assert mouth.started == [("obtain", {"item": "iron_helmet", "count": 1})]
-    assert [pr.describe() for pr in b.will.pending()] == [
-        "obtain iron_chestplate 1 para Vry",
-        "obtain iron_boots 1 para Vry",
-    ]
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="obtain"))
+    assert mouth.started[-1] == ("obtain", {"item": "iron_chestplate", "count": 1})
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-2", skill="obtain"))
+    assert mouth.started[-1] == ("obtain", {"item": "iron_boots", "count": 1})
+    assert len(llm.calls) == 1  # as partes seguintes não gastam IA
+
+
+async def test_make_and_place_on_the_floor(lumi):  # noqa: F811
+    llm = FakeLLM("bora\n[ação: obtain furnace 1]")
+    mouth = PlanningMouth({"furnace": {"ok": True, "steps": []}})
+    mouth.skills = [*mouth.skills, p.SkillSpec(name="place", description="Colocar.", params={"type": "object"})]
+    b = brain(lumi, llm)
+    await b.on_event(mouth, chat("Vry", "lumi faz uma fornalha e coloca no chão"))
+    assert mouth.started == [("obtain", {"item": "furnace", "count": 1})]
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="obtain"))
+    assert mouth.started[-1][0] == "place" and mouth.started[-1][1]["item"] == "furnace"
 
 
 def test_emoji_is_removed():

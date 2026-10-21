@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Montarias, bichos e pesca (fase 16)
+
+`mount` sobe em barco, carrinho ou montaria domada (de preferência no veículo de quem pediu, que tem lugar sobrando), clicando com a mão vazia como um player. O servidor não simula o veículo conduzido por um player, então `control/Driver` move a montaria/barco dela direto, com colisão e degrau; seguindo alguém, ela entra no barco dele, conduz o cavalo dela atrás dele e desce quando ele desce. Para andar, ela desce sozinha antes. `breed` e `tame` (`AnimalSkill`) usam `isFood` do próprio bicho, arrumam a comida se faltar e passam o bicho domesticado para quem pediu. `fish` joga a linha e puxa quando a boia afunda de repente. Na água, parada, ela bate as pernas para ficar com a cabeça de fora. Pedido em partes vira uma fila na Mente: quando uma parte termina, a próxima começa na hora, sem gastar IA; "faz X e coloca no chão" ganha o `place` mesmo se a IA esquecer.
+
 ### Expressões (fase 15)
 
 `bot/Emotes` monta expressões só com o que o jogo já tem, então quem não tem o mod também vê: partículas (corações, notas, brilho), braço balançando, pulo, cabeça fazendo sim/não, olhar para baixo (tímida), giro, agachar e sentar (ela monta num bloco de exibição vazio, sem gravidade, que some quando ela levanta). Rodam por cima do que ela está fazendo; sentada, ela levanta sozinha quando começa uma habilidade ou aparece monstro. A IA escolhe com `[emote: ...]` na fala, e a Mente também usa sozinha: acenar no oi, tímida ao dar flor, sentar do lado dele quando ele para.

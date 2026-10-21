@@ -186,6 +186,32 @@ public final class WaifuCommand {
 									c.emote(StringArgumentType.getString(ctx, "name"), who);
 									return 1;
 								})))
+				.then(Commands.literal("mount").executes(ctx -> {
+					JsonObject args = ctx.getSource().getPlayer() != null
+							? playerArg(ctx.getSource().getPlayer().getGameProfile().name()) : new JsonObject();
+					return run(ctx.getSource(), mod, "mount", args, "Ela vai subir (no seu barco, se tiver lugar).");
+				}))
+				.then(Commands.literal("dismount").executes(ctx ->
+						run(ctx.getSource(), mod, "dismount", new JsonObject(), "Ela vai descer.")))
+				.then(Commands.literal("fish").executes(ctx ->
+						run(ctx.getSource(), mod, "fish", new JsonObject(), "Ela vai pescar.")))
+				.then(Commands.literal("breed")
+						.then(Commands.argument("animal", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[] {"cow", "sheep", "pig", "chicken", "rabbit"}, builder))
+								.executes(ctx -> {
+									JsonObject args = new JsonObject();
+									args.addProperty("animal", StringArgumentType.getString(ctx, "animal"));
+									return run(ctx.getSource(), mod, "breed", args, "Ela vai alimentar os bichos.");
+								})))
+				.then(Commands.literal("tame")
+						.then(Commands.argument("animal", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[] {"wolf", "cat", "parrot", "horse"}, builder))
+								.executes(ctx -> {
+									JsonObject args = ctx.getSource().getPlayer() != null
+											? playerArg(ctx.getSource().getPlayer().getGameProfile().name()) : new JsonObject();
+									args.addProperty("animal", StringArgumentType.getString(ctx, "animal"));
+									return run(ctx.getSource(), mod, "tame", args, "Ela vai domesticar para você.");
+								})))
 				.then(Commands.literal("cook").executes(ctx ->
 						run(ctx.getSource(), mod, "cook", new JsonObject(), "Ela vai fazer comida.")))
 				.then(Commands.literal("mineores").executes(ctx ->

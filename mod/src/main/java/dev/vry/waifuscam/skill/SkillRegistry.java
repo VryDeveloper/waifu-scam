@@ -158,6 +158,36 @@ public final class SkillRegistry {
 				params("{\"type\":\"object\",\"properties\":{}}"),
 				(args, server, me) -> new MineAroundSkill()));
 
+		// ---- fase 16: montarias, bichos, pesca ----
+
+		register(new Spec("mount",
+				"Subir num barco, carrinho ou montaria (cavalo domado, camelo, porco com sela). Com player: vai de carona no veículo dele. "
+						+ "vehicle: boat, minecart, horse ou vazio (qualquer).",
+				params("{\"type\":\"object\",\"properties\":{" + PLAYER + ",\"vehicle\":{\"type\":\"string\",\"description\":\"boat, minecart, horse...\"}}}"),
+				(args, server, me) -> new RideSkill(args.has("vehicle") ? args.get("vehicle").getAsString() : null,
+						args.has("player") ? args.get("player").getAsString() : null)));
+
+		register(new Spec("dismount",
+				"Descer do barco, carrinho ou montaria.",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new HandSkills.Dismount()));
+
+		register(new Spec("breed",
+				"Dar a comida certa para dois bichos adultos do tipo (cow, sheep, pig, chicken...) para nascer um filhote. Arruma a comida se não tiver.",
+				params("{\"type\":\"object\",\"properties\":{\"animal\":{\"type\":\"string\",\"description\":\"cow, sheep, pig, chicken, rabbit, wolf...\"}},\"required\":[\"animal\"]}"),
+				(args, server, me) -> new AnimalSkill(AnimalSkill.Mode.BREED, args.get("animal").getAsString(), null)));
+
+		register(new Spec("tame",
+				"Domesticar um bicho (wolf com osso, cat com peixe, parrot com semente, horse montando) e deixar ele do player que pediu.",
+				params("{\"type\":\"object\",\"properties\":{" + PLAYER + ",\"animal\":{\"type\":\"string\",\"description\":\"wolf, cat, parrot, horse...\"}},\"required\":[\"animal\"]}"),
+				(args, server, me) -> new AnimalSkill(AnimalSkill.Mode.TAME, args.get("animal").getAsString(),
+						args.has("player") ? args.get("player").getAsString() : null)));
+
+		register(new Spec("fish",
+				"Pescar na água mais perto até pegar `count` coisas (faz a vara de pesca se não tiver).",
+				params("{\"type\":\"object\",\"properties\":{" + COUNT + "}}"),
+				(args, server, me) -> new FishSkill(args.has("count") ? count(args) : 5)));
+
 		// ---- fase 12: construir ----
 
 		register(new Spec("build",

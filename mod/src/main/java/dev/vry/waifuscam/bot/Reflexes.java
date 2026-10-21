@@ -159,6 +159,10 @@ final class Reflexes {
 		if (me.isInLava()) {
 			ctx.controls().jump(true).forward(1).sprint(true);
 		}
+		// Nadando sem rumo (parada, conversando): bate as pernas para ficar com a cabeça fora d'água.
+		if (me.isInWater() && !me.isPassenger() && !ctx.controls().isMoving()) {
+			ctx.controls().jump(true);
+		}
 	}
 
 	/** Está mirando nela ou num player de verdade perto dela (que ela acompanha). */
