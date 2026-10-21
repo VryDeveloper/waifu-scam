@@ -214,6 +214,7 @@ waifu-scam/
 | 8 · Visão 🧪 | Campo de visão de verdade, lembrança de onde viu minérios/baús/vilas, mineração na altura certa | Volta sozinha ao ferro que viu ontem |
 | 9 · Receitas 🧪 | Todas as receitas do jogo, passo a passo conferido antes de prometer, nomes em português | "Faz uma cama" sai do zero |
 | 10 · Baú e horta 🧪 | Usa o que está nos baús da base, colhe, replanta e ara terra | Faz pão com o trigo da horta |
+| 11 · Aventura 🧪 | Arco e flecha com mira de verdade, defende quem ela acompanha, tocha nas cavernas | Te protege numa caverna |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

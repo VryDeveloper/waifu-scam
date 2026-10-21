@@ -142,6 +142,10 @@ def candidates(state: dict) -> list[Goal]:
         )
     if not _has(inv, "shield"):
         goals.append(Goal("shield", "obtain", {"item": "shield", "count": 1}, "fazer um escudo", "safety"))
+    if not _has(inv, ("bow", "crossbow")):
+        goals.append(Goal("bow", "obtain", {"item": "bow", "count": 1}, "fazer um arco", "safety"))
+    elif not _has(inv, ("arrow", "spectral_arrow", "tipped_arrow"), 8):
+        goals.append(Goal("arrows", "obtain", {"item": "arrow", "count": 16}, "fazer flechas", "safety"))
     if not _has(inv, "iron_chestplate"):
         goals.append(
             Goal(

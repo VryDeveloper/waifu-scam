@@ -30,6 +30,8 @@ public final class FollowSkill implements Skill {
 	private int futileReplans;
 	private Vec3 positionAtLastReplan;
 	private String failure;
+	private net.minecraft.core.BlockPos lastTorch;
+	private int ticks;
 
 	public FollowSkill(ServerPlayer target, double distance) {
 		this.targetId = target.getUUID();
@@ -59,6 +61,9 @@ public final class FollowSkill implements Skill {
 		double dist = ctx.player().distanceTo(target);
 		if (dist > TOO_FAR) {
 			return fail(targetName + " está longe demais");
+		}
+		if (++ticks % 20 == 0) {
+			lightTheWay(ctx);
 		}
 
 		if (dist <= distance) {
@@ -100,6 +105,29 @@ public final class FollowSkill implements Skill {
 			sinceReplan = REPLAN_INTERVAL;
 		}
 		return Status.RUNNING;
+	}
+
+	/**
+	 * Acompanhando alguém numa caverna escura: deixa tocha no caminho (como um
+	 * player faz para achar a volta e não nascer monstro em volta).
+	 */
+	private void lightTheWay(SkillContext ctx) {
+		var me = ctx.player();
+		var level = ctx.level();
+		var feet = me.blockPosition();
+		if (level.canSeeSky(feet) || level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, feet) >= 5) {
+			return;
+		}
+		if (lastTorch != null && lastTorch.distManhattan(feet) < 8) {
+			return;
+		}
+		if (dev.vry.waifuscam.hands.Stacks.find(me.getInventory(), s -> s.is(net.minecraft.world.item.Items.TORCH)) < 0) {
+			return;
+		}
+		var placed = dev.vry.waifuscam.hands.Placer.placeNear(me, net.minecraft.world.item.Items.TORCH);
+		if (placed != null) {
+			lastTorch = placed;
+		}
 	}
 
 	private Status fail(String reason) {

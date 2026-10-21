@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Aventura (fase 11)
+
+Os reflexos ganharam o arco (`hands/Archery`): com arco e flecha, ela atira em quem está vindo atrás dela ou de um player perto, e em creeper chegando, entre 5 e 24 blocos. Puxa a corda até o arco encher, mira onde o bicho vai estar (velocidade dele × tempo de voo) e compensa a queda da flecha; se um player estiver perto da linha do tiro, espera. De perto continua a espada. Seguindo alguém numa caverna escura, ela deixa tocha a cada ~8 blocos.
+
 ### Baú e horta (fase 10)
 
 O planejador também sabe o que tem nos baús e barris a até 16 blocos (`use_chests`): pegar do baú é o passo mais barato, então ela usa o ferro guardado antes de ir minerar. Plantação madura (trigo, cenoura, batata, beterraba) é fonte de comida e de trigo; ela nunca colhe o que está verde e replanta na hora. A habilidade `farm` cuida da horta inteira e, com enxada e sementes, ara terra perto da água. Quando ela vê uma plantação, cuidar dela entra nos objetivos próprios, no máximo a cada 20 minutos.

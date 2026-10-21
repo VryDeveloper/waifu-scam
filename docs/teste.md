@@ -120,6 +120,17 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 10.5 | Deixe ela perto da horta, sozinha, por uns minutos | Ela cuida da plantação de vez em quando (no máximo a cada 20 min), sem avisar |
 | 10.6 | Ponha `"use_chests": false` em `config/waifuscam.json` e reabra o jogo | Ela não mexe mais nos baús para craftar |
 
+## Fase 11 — Aventura (arco e escolta)
+
+| # | Faça | Esperado |
+|---|---|---|
+| 11.1 | `/give Lumi bow` e `/give Lumi arrow 32`, depois deixe um esqueleto ou zumbi vir de longe | Ela puxa o arco, mira um pouco acima e atira antes de ele chegar |
+| 11.2 | Fique na frente do bicho, entre ele e ela | Ela segura o tiro enquanto você está no caminho |
+| 11.3 | Um creeper vindo a uns 10 blocos | Ela atira; se ele chegar perto, ela foge |
+| 11.4 | Deixe um zumbi atacar você (não ela), perto dela | Ela vem te defender |
+| 11.5 | `lumi me segue` e entre numa caverna escura, com tochas no inventário dela | Ela deixa tocha no caminho a cada ~8 blocos |
+| 11.6 | Deixe ela sozinha com o equipamento de ferro pronto | Ela faz um arco e depois flechas, sem avisar |
+
 ## Se algo travar
 
 - Ela parou no meio de uma tarefa: `/waifu status` mostra o que ela acha que está fazendo; `/waifu stop` destrava.

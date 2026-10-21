@@ -245,3 +245,13 @@ async def test_tends_the_farm_it_sees_then_waits(lumi):
     clock.t += 20
     await b.on_state(mouth, state(inventory=GEARED, seeing=CROPS_IN_VIEW))
     assert mouth.started[-1][0] != "farm"  # acabou de cuidar: só daqui a 20 min
+
+
+def test_bow_then_arrows_are_goals():
+    from waifuscam_mind.brain.goals import candidates
+
+    base = {"stone_pickaxe": 1, "iron_pickaxe": 1, "iron_sword": 1, "shield": 1, "iron_chestplate": 1, "bread": 9}
+    keys = [g.key for g in candidates({"inventory": base, "food": 20})]
+    assert "bow" in keys and "arrows" not in keys
+    keys = [g.key for g in candidates({"inventory": {**base, "bow": 1}, "food": 20})]
+    assert "arrows" in keys and "bow" not in keys

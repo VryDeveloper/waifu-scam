@@ -1,6 +1,7 @@
 package dev.vry.waifuscam.bot;
 
 import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.hands.Archery;
 import dev.vry.waifuscam.hands.Armor;
 import dev.vry.waifuscam.hands.Combat;
 import dev.vry.waifuscam.hands.Food;
@@ -31,6 +32,7 @@ final class Reflexes {
 	private static final int EVENT_COOLDOWN = 20 * 20;
 
 	private final BiConsumer<String, String> events;
+	private final Archery archery = new Archery();
 	private Skill interrupt;
 	private int eatCooldown;
 	private int lastDangerEvent = -EVENT_COOLDOWN;
@@ -73,16 +75,30 @@ final class Reflexes {
 			boolean creeperClose = t instanceof Creeper creeper && (creeper.getSwellDir() > 0 || dist < 4);
 			if (creeperClose || (me.getHealth() <= 6 && dist < ENGAGE_RADIUS)) {
 				interrupt = null;
+				archery.cancel(me);
 				Combat.flee(me, t, c);
 				return true;
 			}
-			boolean targetingMe = t instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() == me;
-			if (dist <= Combat.REACH + 0.6 || (targetingMe && dist <= ENGAGE_RADIUS && !(t instanceof Creeper))) {
+			boolean wantsUs = targetsUs(t, me);
+			if (dist <= Combat.REACH + 0.6 || (wantsUs && dist <= ENGAGE_RADIUS && !(t instanceof Creeper))) {
 				interrupt = null;
+				archery.cancel(me);
 				Combat.fight(me, t, c);
 				return true;
 			}
 		}
+
+		// De longe, com arco: quem vem atrás dela ou de quem ela acompanha, e creeper chegando.
+		if (Archery.canShoot(me)) {
+			Optional<LivingEntity> far = Combat.nearestHostile(me, Archery.MAX_RANGE);
+			if (far.isPresent() && far.get().distanceTo(me) > Archery.MIN_RANGE && worthShooting(far.get(), me)) {
+				interrupt = null;
+				announce(far.get(), tick);
+				archery.tick(me, far.get(), c);
+				return true;
+			}
+		}
+		archery.cancel(me);
 
 		if (interrupt != null) {
 			Skill.Status s = interrupt.tick(ctx);
@@ -119,6 +135,19 @@ final class Reflexes {
 		if (me.isInLava()) {
 			ctx.controls().jump(true).forward(1).sprint(true);
 		}
+	}
+
+	/** Está mirando nela ou num player de verdade perto dela (que ela acompanha). */
+	private static boolean targetsUs(LivingEntity t, ServerPlayer me) {
+		if (!(t instanceof net.minecraft.world.entity.Mob mob) || mob.getTarget() == null) {
+			return false;
+		}
+		LivingEntity victim = mob.getTarget();
+		return victim == me || (victim instanceof ServerPlayer p && !(p instanceof CompanionPlayer) && p.distanceTo(me) < 16);
+	}
+
+	private static boolean worthShooting(LivingEntity t, ServerPlayer me) {
+		return targetsUs(t, me) || (t instanceof Creeper && t.distanceTo(me) < 14);
 	}
 
 	private static boolean hungry(ServerPlayer me) {
