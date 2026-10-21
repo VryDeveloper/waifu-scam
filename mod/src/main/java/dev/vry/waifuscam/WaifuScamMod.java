@@ -54,6 +54,7 @@ public final class WaifuScamMod implements ModInitializer {
 	private MinecraftServer server;
 	private MindClient mind;
 	private CompanionManager companions;
+	private dev.vry.waifuscam.bot.PlayerWatch watch;
 
 	/** Id e nome da personagem, recebidos no welcome da Mente. */
 	private volatile String botId;
@@ -82,6 +83,24 @@ public final class WaifuScamMod implements ModInitializer {
 				sendToMind(Protocol.chatEvent(botId, sender.getGameProfile().name(), message.signedContent()));
 			}
 		});
+		// O que os players fazem (para ela ajudar no que você está fazendo).
+		net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, be) -> {
+			if (watch != null && !level.isClientSide()) {
+				watch.broke(player, state);
+			}
+		});
+		net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+			if (watch != null && !level.isClientSide()) {
+				watch.used(player, player.getItemInHand(hand));
+			}
+			return net.minecraft.world.InteractionResult.PASS;
+		});
+		net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
+			if (watch != null && !level.isClientSide()) {
+				watch.attacked(player, entity);
+			}
+			return net.minecraft.world.InteractionResult.PASS;
+		});
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
 				WaifuCommand.register(dispatcher, registryAccess, this));
 		LOGGER.info("Waifu Scam carregado. A Mente é esperada em {}", config.mindUrl);
@@ -92,6 +111,7 @@ public final class WaifuScamMod implements ModInitializer {
 	private void onServerStarted(MinecraftServer server) {
 		this.server = server;
 		this.autoJoined = false;
+		this.watch = new dev.vry.waifuscam.bot.PlayerWatch(server);
 		this.companions = new CompanionManager(server, this::sendEvent,
 				(id, skill, reason, cancelled) -> sendToMind(Protocol.skillEnded(botId, id, skill, reason, cancelled)));
 		mind = new MindClient(URI.create(config.mindUrl), Duration.ofSeconds(config.reconnectSeconds),
@@ -108,6 +128,7 @@ public final class WaifuScamMod implements ModInitializer {
 		characterName = null;
 		pendingPings.clear();
 		companions = null;
+		watch = null;
 		server = null;
 	}
 
@@ -261,6 +282,9 @@ public final class WaifuScamMod implements ModInitializer {
 				near.add(o);
 			}
 			s.add("players_near", near);
+			if (watch != null) {
+				s.add("players_activity", watch.summary(p, 48));
+			}
 			String reflex = companions.reflexDoing();
 			if (reflex != null) {
 				s.addProperty("reflex", reflex);

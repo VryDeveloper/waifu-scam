@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Ajudar no que você faz (fase 13)
+
+O corpo escuta o que os players fazem (`PlayerWatch`: bloco quebrado, bloco usado na mão para construir, bicho atacado) e manda o último minuto no `state` (`players_activity`, com distância e se está embaixo da terra). A Vontade olha isso antes da lista de objetivos (`brain/helping.py`): cortando árvore → ela corta também; construindo com um bloco → ela junta e entrega; caverna funda ou luta → ela vai junto (seguindo, ela ilumina e os reflexos protegem) e para quando ele sai de lá; colheita → horta; caça → caça junto. Longe, primeiro ela chega perto. Dá preferência a quem está em `[chat] beloved`. Cada ajuda tem um tempo antes de repetir, e o que ele está fazendo também entra no prompt da conversa.
+
 ### Construir (fase 12)
 
 `build` levanta uma casinha 5x5 (dentro 3x3, paredes de 3, teto reto) num lugar plano na frente dela: aceita 1 bloco de desnível (preenche o chão) e até 20 blocos para limpar. Junta o material com o `obtain` (tábuas, ou o que pedirem), entra no meio do terreno e constrói de lá, onde alcança tudo, de baixo para cima e o teto das bordas para o meio. `Placer.placeAgainst` coloca cada bloco apoiado no vizinho firme, como um player faz em parede e teto. Porta e tocha entram se ela tiver; no fim, a casa vira o lugar lembrado "casa". `bridge` vai agachada pondo bloco na frente, embaixo, até achar chão firme do outro lado.

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from .. import protocol as p
 from .goals import Goal, choose
+from .helping import help_goal, wants_company, who
 from .needs import Needs, assess, dusk
 
 if TYPE_CHECKING:
@@ -59,12 +60,14 @@ class WillConfig:
     min_budget_fraction: float = 0.15  # abaixo disso, não gasta IA pensando sozinha
     autopilot: bool = True  # seguir a progressão de objetivos quando estiver livre
     goal_idle: float = 15.0  # segundos parada até pegar o próximo objetivo
-    announce_every: float = 900.0  # no máximo um comentário sobre o que ela decidiu fazer a cada 15 min
+    announce_every: float = 900.0
+    helpful: bool = True  # olhar o que o player está fazendo e ajudar nisso antes da lista de objetivos
+    help_announce_every: float = 300.0  # no máximo um comentário sobre o que ela decidiu fazer a cada 15 min
 
     @classmethod
     def from_section(cls, section: dict) -> WillConfig:
         cfg = cls()
-        for key in ("enabled", "shelter_at_night", "autopilot", "spontaneous"):
+        for key in ("enabled", "shelter_at_night", "autopilot", "spontaneous", "helpful"):
             if key in section:
                 setattr(cfg, key, bool(section[key]))
         for key in ("think_every", "hungry_think_every", "min_budget_fraction", "goal_idle", "announce_every"):
@@ -85,6 +88,7 @@ class Will:
     budget_fraction: Callable[[], float]
     clock: Callable[[], float] = time.monotonic
     start: Callable[..., Awaitable[str]] | None = None  # (mouth, skill, args, partner) → id
+    beloved: str = ""  # quem ela acompanha de preferência (ajuda no que essa pessoa está fazendo)
 
     promises: deque[Promise] = field(default_factory=lambda: deque(maxlen=MAX_PROMISES))
     last_busy: float = field(default=0.0)
@@ -100,6 +104,9 @@ class Will:
     _blocked_until: dict[str, float] = field(default_factory=dict)
     _shelter_id: str | None = None
     _hold_until: float = field(default=float("-inf"))
+    _escort_id: str | None = None  # follow que ela começou sozinha (caverna, luta)
+    _escort_ok_at: float = 0.0
+    last_help_announce: float = field(default=float("-inf"))
 
     def __post_init__(self) -> None:
         now = self.clock()
@@ -161,6 +168,7 @@ class Will:
         busy = bool(s.get("skill")) or bool(s.get("reflex"))
         if busy:
             self.last_busy = now
+            await self._check_escort(mouth, s, now)
             return
         skills = {sk.name for sk in (getattr(mouth, "skills", None) or [])}
 
@@ -217,21 +225,37 @@ class Will:
             and not night_soon
             and now >= self._hold_until
         ):
-            goal = choose(s, self.weights, self.blocked(), skills)
+            goal = help_goal(s, self.beloved) if self.config.helpful else None
+            helping = goal is not None and goal.key not in self.blocked() and goal.skill in skills
+            if not helping:
+                goal = choose(s, self.weights, self.blocked(), skills)
             if goal is not None:
                 self.last_busy = now
-                speak = now - self.last_announce >= self.config.announce_every
-                if speak:
-                    self.last_announce = now
+                if helping:
+                    # Ajudar alguém merece um comentário de vez em quando ("vou te ajudar com a madeira").
+                    speak = now - self.last_help_announce >= self.config.help_announce_every
+                    if speak:
+                        self.last_help_announce = now
+                else:
+                    speak = now - self.last_announce >= self.config.announce_every
+                    if speak:
+                        self.last_announce = now
                 skill_id = await self._run(
                     mouth,
-                    instruction=f"Ninguém pediu nada e você decidiu sozinha: {goal.why}. Se quiser, solte um "
-                    "comentário curtinho e natural (não explique o que vai fazer).",
+                    instruction=(
+                        f"Você viu o que estão fazendo e decidiu sozinha: {goal.why}. Diga algo curtinho e carinhoso "
+                        "para quem você está ajudando (sem explicar passo a passo)."
+                        if helping
+                        else f"Ninguém pediu nada e você decidiu sozinha: {goal.why}. Se quiser, solte um "
+                        "comentário curtinho e natural (não explique o que vai fazer)."
+                    ),
                     action=(goal.skill, goal.args),
                     quiet=not speak,
                 )
                 if skill_id:
                     self._goal_by_id[skill_id] = goal
+                    if goal.skill == "follow" and goal.key.startswith("help:"):
+                        self._escort_id, self._escort_ok_at = skill_id, now
                 log.info("Vontade própria: %s", goal.key)
                 return
 
@@ -260,6 +284,19 @@ class Will:
                 "agora, do seu jeito, pensando no que você mais quer. Pode agir (coloque a ação), puxar assunto "
                 "ou as duas coisas. Se não quiser fazer nada agora, responda só com um comentário curto.",
             )
+
+    async def _check_escort(self, mouth: Mouth, s: dict, now: float) -> None:
+        """Foi junto na caverna/luta por conta própria: quando ele sai de lá, ela volta às coisas dela."""
+        current = s.get("skill") if isinstance(s.get("skill"), dict) else None
+        if not self._escort_id or not current or current.get("id") != self._escort_id:
+            return
+        p = who(s, self.beloved)
+        if p is not None and wants_company(p):
+            self._escort_ok_at = now
+        elif now - self._escort_ok_at > 30:
+            log.info("Ele saiu da caverna/luta; parando de acompanhar")
+            self._escort_id = None
+            await mouth.cancel_skill()
 
     async def _run(
         self,

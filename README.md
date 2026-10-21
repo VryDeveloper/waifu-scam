@@ -217,10 +217,11 @@ waifu-scam/
 | 10 · Baú e horta 🧪 | Usa o que está nos baús da base, colhe, replanta e ara terra | Faz pão com o trigo da horta |
 | 11 · Aventura 🧪 | Arco e flecha com mira de verdade, defende quem ela acompanha, tocha nas cavernas | Te protege numa caverna |
 | 12 · Construir 🧪 | Casinha 5x5 com porta e tocha, ponte até o outro lado | "Constrói uma casa pra gente" vira casa de verdade |
+| 13 · Ajudar no que você faz 🧪 | Ela vê o que você está fazendo (cortando árvore, construindo, minerando, caverna, luta) e ajuda nisso | Você corta árvore e ela vem cortar junto |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 
-Próximos passos depois dos testes: várias personagens ao mesmo tempo, construir, combate à distância (arco), voz.
+Próximos passos: **voz** (ela falar em voz alta em pt-BR, talvez pelo Simple Voice Chat — anotado para depois, falta escolher a voz), várias personagens ao mesmo tempo, construir a partir de schematic, Nether.
 
 ## Desenvolvimento
 

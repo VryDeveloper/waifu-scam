@@ -29,6 +29,7 @@ from ..memory import Memory
 from ..plugins import Plugins
 from .actions import describe_actions, resolve, resolve_all, resolve_later
 from .base import Mouth
+from .helping import describe_activity
 from .needs import describe_needs
 from .recipes import describe_plans
 from .vision import ALIASES, compass, describe_resources, describe_seeing, is_rare, label, nearest
@@ -264,6 +265,7 @@ class ChatBrain:
             budget_fraction=lambda: self.budget.remaining / limit,
             clock=clock,
             start=self._start,
+            beloved=character.beloved,
         )
         if "spontaneous" in self.memory.settings:  # o que foi ligado/desligado no jogo vale mais que o toml
             self.will.config.spontaneous = bool(self.memory.settings["spontaneous"])
@@ -585,6 +587,10 @@ class ChatBrain:
             persona = self.character.persona()
             situation = describe_situation(mouth.state, self.character.username)
             feelings = describe_needs(self.will.needs(mouth.state))
+            if mouth.state is not None and (
+                doing := describe_activity(mouth.state.model_dump(), self.character.username)
+            ):
+                feelings = f"{doing}\n{feelings}"
             online = mouth.state.model_dump().get("players", []) if mouth.state else []
             remembered = self.memory.describe(online, self.character.username)
             if self._world is not None and mouth.state is not None:

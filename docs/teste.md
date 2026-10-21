@@ -141,6 +141,21 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 12.4 | Na beira de um rio, olhando para o outro lado: `lumi faz uma ponte` (ou `/waifu bridge`) | Ela vai agachada pondo bloco na frente até o outro lado |
 | 12.5 | Num lugar todo irregular (montanha) | Ela diz que não achou lugar plano em vez de fazer torto |
 
+## Fase 13 — Ajudar no que você faz
+
+Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
+
+| # | Faça | Esperado |
+|---|---|---|
+| 13.1 | Corte 3 ou 4 troncos perto dela | Ela comenta algo curto e vem cortar árvore também |
+| 13.2 | Construa com pedregulho (coloque uns 5 blocos) | Ela junta pedregulho e te entrega |
+| 13.3 | Desça numa caverna (abaixo de Y 50) | Ela vai junto, deixando tocha no escuro; quando você volta para cima, ela para de te seguir em ~30 s |
+| 13.4 | Lute com um zumbi | Ela fica do seu lado e ajuda |
+| 13.5 | Bata numa vaca | Ela caça junto |
+| 13.6 | Fique longe dela (40 blocos) cortando árvore | Primeiro ela vai até você, depois ajuda |
+| 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
+| 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
+
 ## Desligar o comportamento espontâneo
 
 | # | Faça | Esperado |

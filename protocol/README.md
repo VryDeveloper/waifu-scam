@@ -108,6 +108,10 @@ Mensagens novas: `query` (Mente → Corpo: `id`, `query`, `args`) e `query.resul
 
 `query` `plan` (`item`, `count`): como conseguir o item agora. A resposta traz a receita do jogo (`recipe`: `kind` craft/smelt/gather/hunt, ingredientes, se precisa de bancada) e o passo a passo que ela faria com o inventário dela e com o que tem por perto (`steps`, `have`, `table_nearby`, `furnace_nearby`). É o mesmo planejador do `obtain`. Quando não dá, `ok` é false e `failure` diz o que falta.
 
+## Fase 13: o que os players fazem
+
+`state` ganha `players_activity`: para cada player a até 48 blocos, o último minuto do que ele fez — `broke` (blocos quebrados, `{"oak_log": 3}`), `placed` (bloco na mão ao clicar num bloco, isto é, construindo), `attacked` (bichos atacados), mais `distance`, `y` e `underground`.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.
