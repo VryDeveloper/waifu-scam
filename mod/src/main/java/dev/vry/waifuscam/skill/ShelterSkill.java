@@ -36,7 +36,7 @@ public final class ShelterSkill implements Skill {
 			Items.NETHERRACK, Items.STONE, Items.ANDESITE, Items.DIORITE, Items.GRANITE, Items.TUFF,
 			Items.OAK_PLANKS, Items.SPRUCE_PLANKS, Items.BIRCH_PLANKS);
 
-	private enum Phase { START, BED, DIG, LAND, SEAL, WAIT, OPEN, PILLAR }
+	private enum Phase { START, MOVE, BED, DIG, LAND, SEAL, WAIT, OPEN, PILLAR }
 
 	private Phase phase = Phase.START;
 	private int topY;
@@ -46,6 +46,9 @@ public final class ShelterSkill implements Skill {
 	private BlockPos seal;
 	private int pillarTarget;
 	private Skill bed;
+	private Skill walk;
+	private int moves;
+	private final java.util.Set<BlockPos> badSpots = new java.util.HashSet<>();
 	private String failure;
 
 	@Override
@@ -88,13 +91,24 @@ public final class ShelterSkill implements Skill {
 					next(Phase.BED);
 					return Status.RUNNING;
 				}
-				BlockState floor = level.getBlockState(me.blockPosition().below());
-				if (!natural(floor)) {
-					next(Phase.WAIT); // chão construído: deve ser uma casa
+				if (!level.canSeeSky(me.blockPosition().above())) {
+					next(Phase.WAIT); // tem teto em cima: dentro de casa ou de uma caverna coberta
 					return Status.RUNNING;
+				}
+				BlockState floor = level.getBlockState(me.blockPosition().below());
+				if (!natural(floor) || !safeColumn(level, me.blockPosition())) {
+					// Chão construído (não cava no chão dos outros) ou com caverna/água embaixo: procura outro lugar.
+					return relocate(ctx);
 				}
 				topY = me.getBlockY();
 				next(Phase.DIG);
+			}
+			case MOVE -> {
+				Status s = walk.tick(ctx);
+				if (s != Status.RUNNING) {
+					walk = null;
+					next(Phase.START);
+				}
 			}
 			case BED -> {
 				Status s = bed.tick(ctx);
@@ -122,9 +136,12 @@ public final class ShelterSkill implements Skill {
 							next(Phase.SEAL);
 							return Status.RUNNING;
 						}
+						if (dug == 0) {
+							return relocate(ctx);
+						}
 						return fail("o chão aqui não é seguro para cavar");
 					}
-					digger = new Digger(level, target);
+					digger = new Digger(level, target, false); // sem picareta também cava (só não pega a pedra)
 				}
 				ctx.controls().lookAt(Vec3.atCenterOf(digger.pos()));
 				Digger.Status s = digger.tick(me, ctx.controls());
@@ -217,10 +234,48 @@ public final class ShelterSkill implements Skill {
 
 	private static boolean natural(BlockState s) {
 		return s.is(BlockTags.DIRT) || s.is(BlockTags.BASE_STONE_OVERWORLD) || s.is(BlockTags.SAND)
-				|| s.is(net.minecraft.world.level.block.Blocks.GRAVEL) || s.is(BlockTags.SNOW);
+				|| s.is(net.minecraft.world.level.block.Blocks.GRAVEL) || s.is(BlockTags.SNOW)
+				|| s.is(net.minecraft.world.level.block.Blocks.DIRT_PATH) || s.is(net.minecraft.world.level.block.Blocks.CLAY)
+				|| s.is(net.minecraft.world.level.block.Blocks.MUD) || s.is(BlockTags.TERRACOTTA);
 	}
 
-	private static int filler(Inventory inv) {
+	/** Dá para cavar 3 blocos aqui sem cair numa caverna, em água ou lava? */
+	private static boolean safeColumn(ServerLevel level, BlockPos feet) {
+		for (int d = 1; d <= DEPTH + 1; d++) {
+			BlockPos p = feet.below(d);
+			BlockState s = level.getBlockState(p);
+			if (s.isAir() || !s.getFluidState().isEmpty() || s.getDestroySpeed(level, p) < 0 || BlockFinder.nextToFluid(level, p)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Anda até um lugar perto com chão natural e seguro para cavar. */
+	private Status relocate(SkillContext ctx) {
+		ServerPlayer me = ctx.player();
+		ServerLevel level = ctx.level();
+		badSpots.add(me.blockPosition());
+		if (++moves > 4) {
+			// Sem lugar para cavar: espera aqui mesmo (os reflexos cuidam dos monstros).
+			next(Phase.WAIT);
+			return Status.RUNNING;
+		}
+		java.util.List<BlockPos> spots = BlockFinder.find(level, me.blockPosition(), 10, 12, p -> {
+			BlockPos feet = p.above();
+			return natural(level.getBlockState(p)) && level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
+					&& level.canSeeSky(feet) && !badSpots.contains(feet) && safeColumn(level, feet);
+		});
+		if (spots.isEmpty()) {
+			next(Phase.WAIT);
+			return Status.RUNNING;
+		}
+		walk = new GotoSkill(dev.vry.waifuscam.pathing.LevelTerrain.of(spots.get(0).above()), 0.5, "lugar do abrigo");
+		next(Phase.MOVE);
+		return Status.RUNNING;
+	}
+
+	static int filler(Inventory inv) {
 		for (Item item : FILLERS) {
 			int slot = Stacks.find(inv, s -> s.is(item));
 			if (slot >= 0) {
@@ -260,6 +315,11 @@ public final class ShelterSkill implements Skill {
 	private Status fail(String reason) {
 		failure = reason;
 		return Status.FAILED;
+	}
+
+	@Override
+	public boolean patient() {
+		return true;
 	}
 
 	@Override

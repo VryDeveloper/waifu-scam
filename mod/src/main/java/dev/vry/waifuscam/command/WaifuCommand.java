@@ -150,6 +150,12 @@ public final class WaifuCommand {
 				.then(itemSkill("obtain", "Ela vai conseguir", mod, context))
 				.then(itemSkill("craft", "Ela vai craftar", mod, context))
 				.then(itemSkill("collect", "Ela vai coletar", mod, context))
+				// Mostra o passo a passo que ela faria para conseguir o item agora (sem fazer nada).
+				.then(Commands.literal("plan")
+						.then(Commands.argument("item", ItemArgument.item(context))
+								.executes(ctx -> plan(ctx, mod, 1))
+								.then(Commands.argument("count", IntegerArgumentType.integer(1, 576))
+										.executes(ctx -> plan(ctx, mod, IntegerArgumentType.getInteger(ctx, "count"))))))
 				.then(Commands.literal("give")
 						.then(Commands.argument("item", ItemArgument.item(context))
 								.executes(ctx -> give(ctx, mod, 1))
@@ -239,6 +245,20 @@ public final class WaifuCommand {
 		args.addProperty("item", item);
 		args.addProperty("count", count);
 		return run(ctx.getSource(), mod, skill, args, ok + " " + count + " " + item.replace("minecraft:", "") + ".");
+	}
+
+	private static int plan(CommandContext<CommandSourceStack> ctx, WaifuScamMod mod, int count) {
+		CommandSourceStack src = ctx.getSource();
+		var me = mod.companions() != null ? mod.companions().player() : null;
+		if (me == null) {
+			src.sendFailure(Component.literal("Ela não está no mundo."));
+			return 0;
+		}
+		String item = Stacks.id(ItemArgument.getItem(ctx, "item").item().value());
+		JsonObject plan = dev.vry.waifuscam.skill.Queries.plan(item, count, src.getServer(), me);
+		String text = dev.vry.waifuscam.skill.Queries.text(plan);
+		src.sendSuccess(() -> Component.literal(count + " " + item.replace("minecraft:", "") + ": " + text), false);
+		return 1;
 	}
 
 	private static int give(CommandContext<CommandSourceStack> ctx, WaifuScamMod mod, int count) throws CommandSyntaxException {

@@ -18,16 +18,23 @@ class Provider:
     api_key: str
     model: str
     extra_body: dict = field(default_factory=dict)
+    # Modelo para o que não é conversa (pensar sozinha, diário, comentários). No Groq
+    # cada modelo tem a própria cota por minuto, então separar deixa o chat mais rápido.
+    background_model: str = ""
+
+    def model_for(self, background: bool) -> str:
+        return self.background_model if background and self.background_model else self.model
 
 
 @dataclass(frozen=True)
 class Preset:
     base_url: str
     default_model: str
+    background_model: str = ""
 
 
 PRESETS: dict[str, Preset] = {
-    "groq": Preset("https://api.groq.com/openai/v1", "openai/gpt-oss-120b"),
+    "groq": Preset("https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "openai/gpt-oss-20b"),
     "gemini": Preset("https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-flash-latest"),
     "openrouter": Preset("https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free"),
     # Qualquer servidor compatível com a API da OpenAI (Ollama, LM Studio...): CUSTOM_BASE_URL
@@ -62,6 +69,9 @@ def load_providers(order: list[str] | None = None, model_override: str = "") -> 
         model = model_override.strip() or os.getenv(f"{prefix}_MODEL", "").strip() or preset.default_model
         if name == "custom" and base_url and not key:
             key = "not-needed"  # servidores locais ignoram a chave
+        background = os.getenv(f"{prefix}_BACKGROUND_MODEL", "").strip() or (
+            "" if model_override.strip() or os.getenv(f"{prefix}_MODEL", "").strip() else preset.background_model
+        )
         if key and base_url and model:
-            providers.append(Provider(name, base_url, key, model, _extra_body_for(model)))
+            providers.append(Provider(name, base_url, key, model, _extra_body_for(model), background))
     return providers

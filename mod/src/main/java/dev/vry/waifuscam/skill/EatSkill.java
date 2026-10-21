@@ -70,6 +70,11 @@ public final class EatSkill implements Skill {
 	}
 
 	@Override
+	public boolean patient() {
+		return true;
+	}
+
+	@Override
 	public String failureReason() {
 		return failure;
 	}

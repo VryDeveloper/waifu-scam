@@ -158,7 +158,7 @@ Em `character.toml`, seção `[skin]`, escolha uma forma:
 | Opção | Como | Precisa de |
 |---|---|---|
 | Copiar de uma conta | `username = "NomeDaConta"` | Nada |
-| PNG próprio | `file = "skin.png"` (64×64, na pasta da personagem) e `model = "slim"` ou `"classic"` | `MINESKIN_API_KEY` no `.env`, grátis em [account.mineskin.org/keys](https://account.mineskin.org/keys) |
+| PNG próprio | `file = "skin.png"` (64×64, na pasta da personagem) e `model = "slim"` ou `"classic"` | Nada (opcional: `MINESKIN_API_KEY` no `.env`, grátis em [account.mineskin.org/keys](https://account.mineskin.org/keys), para não cair na fila pública) |
 
 A Mente assina a skin uma vez e guarda em cache (`mind/data/`). Para trocar, mude o arquivo, reinicie a Mente e use `/waifu despawn` e `/waifu spawn`.
 
@@ -169,7 +169,7 @@ waifu-scam/
 ├── mod/            # Corpo: mod Fabric (Java 25, Gradle)
 │   └── src/main/java/dev/vry/waifuscam/
 │       ├── WaifuScamMod.java   # entrada do mod
-│       ├── bot/                # a personagem: fake player, conexão falsa, ciclo de vida
+│       ├── bot/                # a personagem: fake player, ciclo de vida, reflexos, olhos (Eyes)
 │       ├── mixin/              # ajustes no jogo (respawn, física, conexão)
 │       ├── bridge/             # cliente WebSocket + protocolo (sem dependência do Minecraft)
 │       ├── pathing/            # A* em grade de blocos (testado sem o jogo)
@@ -185,7 +185,8 @@ waifu-scam/
 │   │   ├── protocol.py         # modelos Pydantic do protocolo
 │   │   ├── character.py        # carrega o pacote de personagem
 │   │   ├── skins.py            # skin por conta (Mojang) ou PNG (MineSkin), com cache
-│   │   ├── memory.py           # memória de longo prazo: lugares, pessoas, notas, diário
+│   │   ├── memory.py           # memória de longo prazo: lugares, pessoas, notas, diário, o que ela viu
+│   │   ├── items.py            # nomes dos itens em português (tradução oficial do jogo + apelidos)
 │   │   ├── plugins.py          # carregador de plugins (ganchos on_event, prompt, on_say)
 │   │   ├── brain/              # o que ela faz com os eventos (eco ou IA) e as ações que ela escolhe
 │   │   ├── llm/                # provedores gratuitos com fallback e orçamento diário
@@ -209,6 +210,8 @@ waifu-scam/
 | 5 · Vontade própria 🧪 | Necessidades, reflexos, abrigo, caça, aceitar/adiar/recusar | Passa uma noite sozinha sem morrer |
 | 6 · Memória 🧪 | Lugares, relações, promessas, resumo diário | Lembra onde fica a base depois de reiniciar |
 | 7 · Polimento 🧪 | Dormir na cama, armadura e escudo automáticos, plugins da Mente | Contínuo |
+| 8 · Visão 🧪 | Campo de visão de verdade, lembrança de onde viu minérios/baús/vilas, mineração na altura certa | Volta sozinha ao ferro que viu ontem |
+| 9 · Receitas 🧪 | Todas as receitas do jogo, passo a passo conferido antes de prometer, nomes em português | "Faz uma cama" sai do zero |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 

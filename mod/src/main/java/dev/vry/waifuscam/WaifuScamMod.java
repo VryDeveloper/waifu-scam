@@ -199,6 +199,7 @@ public final class WaifuScamMod implements ModInitializer {
 		ServerLevel overworld = server.overworld();
 		s.addProperty("time_of_day", overworld.getOverworldClockTime() % 24000L);
 		s.addProperty("weather", overworld.isThundering() ? "thunder" : overworld.isRaining() ? "rain" : "clear");
+		s.addProperty("world", worldName());
 
 		if (p != null) {
 			s.addProperty("alive", !p.isDeadOrDying());
@@ -234,6 +235,21 @@ public final class WaifuScamMod implements ModInitializer {
 			s.addProperty("in_water", p.isInWater());
 			s.addProperty("on_fire", p.isOnFire());
 			s.addProperty("air", p.getAirSupply());
+			// Visão: o que está no campo de visão dela agora, e quem está por perto (ela ouve os players).
+			s.add("seeing", companions.eyes().seeing());
+			JsonArray near = new JsonArray();
+			for (ServerPlayer other : p.level().players()) {
+				if (other == p || other.isSpectator() || other.distanceTo(p) > 64) {
+					continue;
+				}
+				JsonObject o = new JsonObject();
+				o.addProperty("name", other.getGameProfile().name());
+				o.addProperty("distance", Math.round(other.distanceTo(p) * 10) / 10.0);
+				o.addProperty("dir", dev.vry.waifuscam.bot.Eyes.direction(p, other.position()));
+				o.addProperty("visible", p.hasLineOfSight(other));
+				near.add(o);
+			}
+			s.add("players_near", near);
 			String reflex = companions.reflexDoing();
 			if (reflex != null) {
 				s.addProperty("reflex", reflex);
@@ -248,6 +264,23 @@ public final class WaifuScamMod implements ModInitializer {
 			}
 		}
 		sendToMind(Protocol.state(botId, s));
+		// Achados novos e lembranças que sumiram viram eventos (a Mente guarda no disco).
+		for (JsonObject seen : companions.eyes().drainNews()) {
+			sendToMind(Protocol.event(botId, "seen", seen));
+		}
+		for (JsonObject g : companions.eyes().drainGone()) {
+			sendToMind(Protocol.event(botId, "gone", g));
+		}
+	}
+
+	/** Nome da pasta do mundo: separa as lembranças de um mundo das de outro. */
+	private String worldName() {
+		try {
+			var path = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toAbsolutePath().normalize();
+			return path.getFileName() != null ? path.getFileName().toString() : server.getWorldData().getLevelName();
+		} catch (RuntimeException e) {
+			return server.getWorldData().getLevelName();
+		}
 	}
 
 	/** A personagem fala no chat. Mensagem de sistema no formato de chat de player. */
@@ -395,6 +428,46 @@ public final class WaifuScamMod implements ModInitializer {
 						s.execute(() -> {
 							if (companions != null) {
 								companions.stopSkill();
+							}
+						});
+					}
+				}
+				case "query" -> {
+					// Pergunta rápida (ex.: como fazer uma cama agora). Responde sem mexer no mundo.
+					String id = Protocol.string(msg, "id");
+					String query = Protocol.string(msg, "query");
+					JsonObject args = msg.has("args") && msg.get("args").isJsonObject() ? msg.getAsJsonObject("args") : new JsonObject();
+					if (s != null) {
+						s.execute(() -> {
+							JsonObject result;
+							CompanionPlayer me = companions != null ? companions.player() : null;
+							if (me == null) {
+								result = new JsonObject();
+								result.addProperty("ok", false);
+								result.addProperty("failure", "não estou no mundo agora");
+							} else {
+								try {
+									result = dev.vry.waifuscam.skill.Queries.answer(query, args, s, me);
+								} catch (RuntimeException e) {
+									LOGGER.warn("Erro respondendo {} {}", query, args, e);
+									result = new JsonObject();
+									result.addProperty("ok", false);
+									result.addProperty("failure", "deu um erro aqui dentro");
+								}
+							}
+							sendToMind(Protocol.queryResult(botId, id, result));
+						});
+					}
+				}
+				case "memory.blocks" -> {
+					// Lembranças de onde ela viu as coisas, guardadas pela Mente entre sessões.
+					JsonArray blocks = msg.has("blocks") && msg.get("blocks").isJsonArray()
+							? msg.getAsJsonArray("blocks") : new JsonArray();
+					if (s != null) {
+						s.execute(() -> {
+							if (companions != null) {
+								companions.eyes().seed(blocks);
+								LOGGER.info("Lembranças de blocos recebidas: {}", blocks.size());
 							}
 						});
 					}

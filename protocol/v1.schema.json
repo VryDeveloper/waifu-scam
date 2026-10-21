@@ -59,6 +59,15 @@
     },
     {
       "$ref": "#/$defs/skill.failed"
+    },
+    {
+      "$ref": "#/$defs/memory.blocks"
+    },
+    {
+      "$ref": "#/$defs/query"
+    },
+    {
+      "$ref": "#/$defs/query.result"
     }
   ],
   "$defs": {
@@ -365,6 +374,89 @@
         "reflex": {
           "type": "string",
           "description": "Fase 5: o que o reflexo está fazendo agora (ex.: comendo)."
+        },
+        "world": {
+          "type": "string",
+          "description": "Fase 8: nome da pasta do mundo (separa as lembranças de cada mundo)."
+        },
+        "seeing": {
+          "type": "object",
+          "description": "Fase 8: o que está no campo de visão dela agora.",
+          "properties": {
+            "looking_at": {
+              "type": "string"
+            },
+            "biome": {
+              "type": "string"
+            },
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "distance": {
+                    "type": "number"
+                  },
+                  "dir": {
+                    "type": "string",
+                    "examples": [
+                      "na frente, à direita"
+                    ]
+                  },
+                  "hostile": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "block": {
+                    "type": "string"
+                  },
+                  "distance": {
+                    "type": "number"
+                  },
+                  "dir": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "players_near": {
+          "type": "array",
+          "description": "Fase 8: players a até 64 blocos, vistos ou não.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "distance": {
+                "type": "number"
+              },
+              "dir": {
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            }
+          }
         }
       },
       "required": [
@@ -489,6 +581,102 @@
         "id",
         "skill",
         "reason"
+      ]
+    },
+    "memory.blocks": {
+      "description": "Mente → Corpo, ao conectar (fase 8). Onde ela lembra de ter visto coisas neste mundo.",
+      "properties": {
+        "type": {
+          "const": "memory.blocks"
+        },
+        "world": {
+          "type": "string"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "block": {
+                "type": "string",
+                "examples": [
+                  "deepslate_diamond_ore"
+                ]
+              },
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              },
+              "dimension": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "block",
+              "x",
+              "y",
+              "z"
+            ]
+          }
+        }
+      },
+      "required": [
+        "type",
+        "blocks"
+      ]
+    },
+    "query": {
+      "description": "Mente → Corpo (fase 9). Pergunta rápida, sem fazer nada no mundo. query \"plan\": args {item, count}.",
+      "properties": {
+        "type": {
+          "const": "query"
+        },
+        "id": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "examples": [
+            "plan"
+          ]
+        },
+        "args": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "query"
+      ]
+    },
+    "query.result": {
+      "description": "Corpo → Mente. Resposta a um query, com o mesmo id. Para \"plan\": ok, failure, item, count, have, table_nearby, furnace_nearby, recipe {kind, table, makes, inputs | input | from, tool} e steps [{do: gather|hunt|craft|smelt, item, count, ...}].",
+      "properties": {
+        "type": {
+          "const": "query.result"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "failure": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "id"
       ]
     }
   }

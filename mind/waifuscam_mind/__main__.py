@@ -6,6 +6,7 @@ import asyncio
 import logging
 import sys
 
+from . import items as item_names
 from .brain import Brain, ChatBrain, EchoBrain
 from .character import Character, CharacterError, load_character
 from .config import Settings
@@ -31,12 +32,28 @@ def build_brain(character: Character, settings: Settings) -> Brain:
     budget = Budget(int(cfg.get("daily_limit", 800)), settings.data_dir / f"budget-{character.id}.json")
     memory = Memory(settings.data_dir / "memory" / f"{character.id}.json")
     plugins = Plugins(load_plugins(list(character.section("plugins").get("enabled", [])), character))
-    return ChatBrain(character, llm, budget, memory=memory, plugins=plugins)
+    names = item_names.load(character.language)
+    return ChatBrain(character, llm, budget, memory=memory, plugins=plugins, items=names)
 
 
 def main() -> None:
     settings = Settings.from_env()
-    logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+    fmt = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+    logging.basicConfig(level=settings.log_level, format=fmt)
+    # Também em arquivo (mind/data/mente.log), para dar para ver depois o que ela pensou e fez.
+    try:
+        from logging.handlers import RotatingFileHandler
+
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            settings.data_dir / "mente.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+        )
+        handler.setFormatter(logging.Formatter(fmt))
+        logging.getLogger().addHandler(handler)
+    except OSError as e:
+        log.warning("Não consegui abrir o arquivo de log: %s", e)
+    for noisy in ("httpx", "httpcore", "openai", "websockets"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     try:
         character = load_character(settings.characters_dir, settings.character)
     except CharacterError as e:

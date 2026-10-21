@@ -107,6 +107,7 @@ async def test_idle_too_long_decides_alone(lumi):
     llm = FakeLLM("tô entediada, vou pegar madeira\n[ação: obtain oak_log 8]")
     mouth = FakeMouth()
     b = make(lumi, llm, clock)
+    b.will.config.autopilot = False  # só a decisão livre da IA
     await b.on_state(mouth, state())
     assert mouth.started == []  # acabou de chegar: não pensa ainda
     clock.t += 200
@@ -159,3 +160,67 @@ async def test_danger_comment_has_cooldown(lumi):
 
 def test_unused_import_guard():
     assert AllProvidersFailed
+
+
+# ---- objetivos próprios -----------------------------------------------------------
+
+
+async def test_follows_its_own_progression_when_idle(lumi):
+    clock = Clock()
+    llm = FakeLLM("bora fazer uma picareta")
+    mouth = FakeMouth()
+    b = make(lumi, llm, clock)
+    await b.on_state(mouth, state(inventory={"dirt": 3}))
+    assert mouth.started == []  # acabou de ficar livre
+    clock.t += 20
+    await b.on_state(mouth, state(inventory={"dirt": 3}))
+    assert mouth.started == [("obtain", {"item": "wooden_pickaxe", "count": 1})]
+    assert "decidiu sozinha: fazer uma picareta de madeira" in llm.calls[0][-1]["content"]
+
+
+async def test_failed_goal_is_skipped_for_a_while(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    b = make(lumi, FakeLLM(), clock)
+    clock.t += 20
+    await b.on_state(mouth, state(inventory={"wooden_pickaxe": 1}))
+    assert mouth.started[-1] == ("obtain", {"item": "stone_pickaxe", "count": 1})
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-1", skill="obtain", reason="sem pedra"))
+    clock.t += 20
+    await b.on_state(mouth, state(inventory={"wooden_pickaxe": 1}))
+    assert mouth.started[-1] == ("obtain", {"item": "stone_sword", "count": 1})  # pulou a picareta
+
+
+async def test_hungry_without_food_goes_for_food_first(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    b = make(lumi, FakeLLM(), clock)
+    clock.t += 20
+    await b.on_state(mouth, state(food=8, inventory={"stone_pickaxe": 1}))
+    assert mouth.started == [("obtain", {"item": "cooked_beef", "count": 3})]
+
+
+async def test_failed_shelter_is_retried(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    b = make(lumi, FakeLLM(), clock)
+    await b.on_state(mouth, state(time_of_day=DUSK))
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-1", skill="shelter", reason="chão ruim"))
+    await b.on_state(mouth, state(time_of_day=DUSK + 50))
+    assert [s for s, _ in mouth.started] == ["shelter"]  # ainda não
+    clock.t += 50
+    await b.on_state(mouth, state(time_of_day=DUSK + 100))
+    assert [s for s, _ in mouth.started] == ["shelter", "shelter"]
+
+
+async def test_stay_here_pauses_own_goals(lumi):
+    clock = Clock()
+    mouth = FakeMouth()
+    b = make(lumi, FakeLLM("tá, fico", "ok"), clock)
+    await b.on_event(mouth, p.Event(event="chat", **{"from": "Vry", "text": "lumi fica aqui"}))
+    clock.t += 60
+    await b.on_state(mouth, state(inventory={"dirt": 1}))
+    assert mouth.started == []
+    clock.t += 200
+    await b.on_state(mouth, state(inventory={"dirt": 1}))
+    assert mouth.started and mouth.started[0][0] == "obtain"

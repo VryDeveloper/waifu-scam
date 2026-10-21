@@ -231,6 +231,11 @@ public final class SmeltSkill implements Skill {
 	}
 
 	@Override
+	public boolean patient() {
+		return loaded;
+	}
+
+	@Override
 	public String failureReason() {
 		return failure;
 	}

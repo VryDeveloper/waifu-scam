@@ -94,6 +94,16 @@ public final class Protocol {
 		return event(bot, "chat", f);
 	}
 
+	/** Resposta a uma pergunta da Mente (query). */
+	public static String queryResult(String bot, String id, JsonObject result) {
+		JsonObject o = envelope("query.result", bot);
+		o.addProperty("id", id);
+		for (var e : result.entrySet()) {
+			o.add(e.getKey(), e.getValue());
+		}
+		return o.toString();
+	}
+
 	/** Snapshot periódico do corpo. */
 	public static String state(String bot, JsonObject state) {
 		JsonObject o = envelope("state", bot);

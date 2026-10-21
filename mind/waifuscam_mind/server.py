@@ -44,6 +44,8 @@ class Session:
     tasks: set[asyncio.Task] = field(default_factory=set)
     skills: list[p.SkillSpec] = field(default_factory=list)  # catálogo que veio no hello
     _skill_ids: itertools.count = field(default_factory=lambda: itertools.count(1))
+    _query_ids: itertools.count = field(default_factory=lambda: itertools.count(1))
+    pending: dict[str, asyncio.Future] = field(default_factory=dict)  # query id → resposta
 
     @property
     def character(self) -> Character:
@@ -70,6 +72,20 @@ class Session:
 
     async def cancel_skill(self) -> None:
         await self.send(p.SkillCancel())
+
+    async def query(self, name: str, args: dict[str, Any] | None = None, timeout: float = 3.0) -> dict | None:
+        """Pergunta algo ao corpo e espera a resposta (None se não vier a tempo)."""
+        qid = f"q-{next(self._query_ids)}"
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
+        self.pending[qid] = future
+        try:
+            await self.send(p.Query(id=qid, query=name, args=args or {}))
+            return await asyncio.wait_for(future, timeout)
+        except TimeoutError:
+            log.warning("O corpo não respondeu a pergunta %s %s", name, args)
+            return None
+        finally:
+            self.pending.pop(qid, None)
 
     def run_in_background(self, coro) -> None:
         """Roda sem travar a leitura de mensagens (a IA leva segundos para responder)."""
@@ -103,6 +119,12 @@ class EventMouth:
 
     async def cancel_skill(self) -> None:
         await self.session.cancel_skill()
+
+    async def send(self, msg: p.Envelope) -> None:
+        await self.session.send(msg)
+
+    async def query(self, name: str, args: dict[str, Any] | None = None) -> dict | None:
+        return await self.session.query(name, args)
 
 
 class MindServer:
@@ -242,9 +264,18 @@ async def on_event(session: Session, msg: p.Envelope) -> None:
     assert isinstance(msg, p.Event)
     session.events.append(msg)
     del session.events[:-MAX_EVENTS_KEPT]
-    log.info("Evento: %s", msg.model_dump(exclude={"v", "type", "bot"}))
+    level = logging.DEBUG if msg.event in ("seen", "gone") else logging.INFO
+    log.log(level, "Evento: %s", msg.model_dump(exclude={"v", "type", "bot"}))
     mouth = EventMouth(session, session.state)
     session.run_in_background(session.server.brain.on_event(mouth, msg))
+
+
+@MindServer.handles("query.result")
+async def on_query_result(session: Session, msg: p.Envelope) -> None:
+    assert isinstance(msg, p.QueryResult)
+    future = session.pending.get(msg.id)
+    if future is not None and not future.done():
+        future.set_result(msg.model_dump(exclude={"v", "type", "bot", "id"}))
 
 
 @MindServer.handles("skill.done")

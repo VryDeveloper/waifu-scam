@@ -1,6 +1,8 @@
 package dev.vry.waifuscam.bot;
 
+import dev.vry.waifuscam.WaifuScamMod;
 import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.skill.EscapeSkill;
 import dev.vry.waifuscam.skill.Skill;
 import dev.vry.waifuscam.skill.SkillContext;
 import net.minecraft.network.chat.Component;
@@ -9,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -41,6 +44,7 @@ public final class CompanionManager {
 	private final SkillListener skillListener;
 	private final Controls controls = new Controls();
 	private final Reflexes reflexes;
+	private final Eyes eyes = new Eyes();
 
 	private Skill skill;
 	private String skillId;
@@ -49,6 +53,12 @@ public final class CompanionManager {
 	private SkinData skin;
 	private UUID uuid;
 	private int deadTicks;
+
+	// Vigia: habilidade rodando sem ela sair do lugar nem mudar o inventário por muito tempo = travou.
+	private static final int WATCHDOG_TICKS = 20 * 60;
+	private int watchdogTicks;
+	private net.minecraft.world.phys.Vec3 watchdogPos;
+	private int watchdogInv;
 
 	public CompanionManager(MinecraftServer server, BiConsumer<String, String> events, SkillListener skillListener) {
 		this.server = server;
@@ -69,6 +79,11 @@ public final class CompanionManager {
 
 	public Controls controls() {
 		return controls;
+	}
+
+	/** O que ela vê e lembra de ter visto. */
+	public Eyes eyes() {
+		return eyes;
 	}
 
 	/** Chamado quando a Mente diz qual personagem é (welcome). */
@@ -149,8 +164,16 @@ public final class CompanionManager {
 	/** Começa uma habilidade; a que estava rodando é interrompida (e reportada como tal). */
 	public void startSkill(String id, Skill next) {
 		endSkill("interrompida por outra ação", true);
+		// Pediram algo enquanto ela está num buraco (o abrigo da noite): primeiro ela sai.
+		CompanionPlayer me = player();
+		Set<String> stayPut = Set.of("shelter", "sleep", "eat", "stop", "escape");
+		if (me != null && !stayPut.contains(next.name()) && EscapeSkill.trapped(me)) {
+			next = new EscapeSkill.Then(new EscapeSkill(), next);
+		}
 		skill = next;
 		skillId = id;
+		watchdogTicks = 0;
+		WaifuScamMod.LOGGER.info("[{}] começou {} ({}): {}", username, next.name(), id, next.describe());
 	}
 
 	/** Para o que estiver fazendo. Devolve false se não estava fazendo nada. */
@@ -196,6 +219,11 @@ public final class CompanionManager {
 		skill = null;
 		skillId = null;
 		controls.release();
+		if (reason == null) {
+			WaifuScamMod.LOGGER.info("[{}] terminou {} ({})", username, ended.name(), id);
+		} else {
+			WaifuScamMod.LOGGER.info("[{}] parou {} ({}): {}", username, ended.name(), id, reason);
+		}
 		skillListener.onSkillEnded(id, ended.name(), reason, cancelled);
 	}
 
@@ -224,11 +252,17 @@ public final class CompanionManager {
 			return;
 		}
 		deadTicks = 0;
+		if (server.getTickCount() % 20 == 0) {
+			eyes.look(player, server.getTickCount());
+		}
 
 		SkillContext ctx = new SkillContext(server, player, controls);
 		if (reflexes.before(ctx, server.getTickCount())) {
 			reflexes.after(ctx);
 			return; // a habilidade fica pausada neste tick
+		}
+		if (skill != null && stuck(player)) {
+			endSkill("fiquei travada sem conseguir fazer nada");
 		}
 		if (skill != null) {
 			Skill.Status status = skill.tick(ctx);
@@ -242,6 +276,36 @@ public final class CompanionManager {
 			lookAtNearestPlayer(player);
 		}
 		reflexes.after(ctx);
+	}
+
+	private boolean stuck(CompanionPlayer me) {
+		if (skill.patient()) {
+			watchdogTicks = 0;
+			return false;
+		}
+		int inv = me.getInventory().getTimesChanged();
+		if (watchdogPos == null || me.position().distanceTo(watchdogPos) > 1.5 || inv != watchdogInv) {
+			watchdogPos = me.position();
+			watchdogInv = inv;
+			watchdogTicks = 0;
+			return false;
+		}
+		return ++watchdogTicks > WATCHDOG_TICKS;
+	}
+
+	// Olhar em volta quando está parada e ninguém está perto (em vez de olhar para o nada).
+	private net.minecraft.world.phys.Vec3 idleLook;
+	private int idleLookTicks;
+
+	private void lookAround(CompanionPlayer me) {
+		if (idleLook == null || --idleLookTicks <= 0) {
+			var rnd = java.util.concurrent.ThreadLocalRandom.current();
+			double yaw = Math.toRadians(me.getYRot() + rnd.nextDouble(-110, 110));
+			double dist = rnd.nextDouble(4, 12);
+			idleLook = me.getEyePosition().add(-Math.sin(yaw) * dist, rnd.nextDouble(-2.5, 1.5), Math.cos(yaw) * dist);
+			idleLookTicks = rnd.nextInt(40, 120);
+		}
+		controls.lookAt(idleLook);
 	}
 
 	/** Parada, ela olha para o player mais perto, como alguém de verdade faria. */
@@ -258,8 +322,11 @@ public final class CompanionManager {
 				nearest = p;
 			}
 		}
-		if (nearest != null) {
+		if (nearest != null && java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 97) {
 			controls.lookAt(nearest.getEyePosition());
+			idleLook = null;
+		} else {
+			lookAround(me);
 		}
 	}
 

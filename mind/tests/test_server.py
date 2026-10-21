@@ -79,7 +79,7 @@ async def test_greets_when_spawned(server):
     async with SimulatedBody(url(server)) as body:
         await body.handshake()
         await body.spawn()
-        assert await body.next_say() == "oi gente! cheguei"
+        assert await body.next_say() == "oii, cheguei hehe"
 
 
 async def test_echoes_only_when_mentioned_and_online(server):
@@ -87,7 +87,7 @@ async def test_echoes_only_when_mentioned_and_online(server):
         await body.handshake()
         await body.chat("Vry", "lumi bora pegar madeira?")  # ainda fora do mundo: não responde
         await body.spawn()
-        assert await body.next_say() == "oi gente! cheguei"
+        assert await body.next_say() == "oii, cheguei hehe"
         await body.chat("Vry", "alguém viu meu cavalo?")  # não falou com ela
         await body.chat("Vry", "LUMI bora pegar madeira?")
         assert await body.next_say() == "(eco) LUMI bora pegar madeira?"

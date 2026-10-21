@@ -51,3 +51,21 @@ O Mineflayer, usado pela maioria dos bots de IA de Minecraft, só suporta oficia
 ## Memória (fase 6)
 
 `mind/waifuscam_mind/memory.py` guarda em JSON (gravação atômica, nunca fica pela metade): lugares, pessoas (quando conheceu, quantas conversas, notas), notas soltas, diário, promessas e as últimas 30 falas. A IA escreve com tags no fim da resposta — `[lembrar: base]`, `[esquecer: base]`, `[nota: ...]` — e lê pelo prompt (lugares, quem está online e o que ela sabe da pessoa, notas e as últimas entradas do diário). O diário é escrito por ela ao amanhecer no jogo, se teve conversa desde a última entrada (1 chamada de IA por dia de jogo, no máximo a cada 10 min).
+
+## Como ela sabe fazer as coisas (fase 9)
+
+As receitas vêm do próprio jogo: o corpo lê todas as receitas carregadas no servidor (bancada, inventário 2x2 e fornalha, inclusive de datapacks), então ela sabe fazer tudo que tem receita, na versão exata que está rodando. De onde sai cada matéria-prima (minérios, troncos, areia, flores, lã de cada cor, drops de bicho) é uma lista curada em `GameKnowledge`.
+
+O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela já tem, usa bancada e fornalha que estiverem a até 12 blocos, faz as ferramentas que faltam e calcula combustível. A Mente pergunta esse plano (`query` `plan`) quando alguém cita um item no chat, coloca a receita e o plano no prompt, e confere de novo antes de começar: se o jogo diz que não dá, ela fala o que falta em vez de prometer.
+
+Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
+
+## Como ela enxerga (fase 8)
+
+Uma vez por segundo, `bot/Eyes` lança 117 raios num cone de ~110° × 76° para onde a cabeça dela está virada, até 48 blocos (com um tremidinho a cada olhar, para cobrir o campo inteiro com o tempo). Ela só vê o que tem linha de visão: minério atrás da pedra continua escondido, água é transparente, e no escuro ela só reconhece o que está a até 4 blocos. Bichos, players e itens no chão entram se estiverem no cone e à vista.
+
+O que ela vê vai no `state` (`seeing`) e vira a seção "O que você está vendo agora" do prompt. Achados que valem lembrar (minérios, baús, sino de vila, spawner, obsidiana...) viram eventos `seen` e ficam na memória da Mente, por mundo. Ao conectar, a Mente devolve essas lembranças ao corpo (`memory.blocks`).
+
+Quando precisa de um bloco que não está à vista, a coleta primeiro tenta lembrar onde viu um (até 160 blocos) e vai lá. Se não lembra e é minério, cava em escada até a altura em que ele é comum (ferro ~16, ouro ~-16, diamante e redstone ~-53, lápis ~0, cobre ~48) e abre um túnel de 2 de altura dali, virando a cada 32 blocos, desviando de água e lava e pondo tocha no escuro.
+
+A procura de blocos para quebrar (`BlockFinder`) ainda olha um cubo em volta e aceita qualquer bloco com uma face no ar, mesmo fora do cone. É um atalho: num player, seria virar a cabeça para olhar em volta.

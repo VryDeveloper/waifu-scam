@@ -98,6 +98,11 @@ public final class SleepSkill implements Skill {
 	}
 
 	@Override
+	public boolean patient() {
+		return true;
+	}
+
+	@Override
 	public String failureReason() {
 		return failure;
 	}

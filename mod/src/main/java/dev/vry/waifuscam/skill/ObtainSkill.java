@@ -9,9 +9,7 @@ import dev.vry.waifuscam.craft.Planner.Gather;
 import dev.vry.waifuscam.craft.Planner.Plan;
 import dev.vry.waifuscam.craft.Planner.Smelt;
 import dev.vry.waifuscam.craft.Planner.Step;
-import dev.vry.waifuscam.hands.BlockFinder;
 import dev.vry.waifuscam.hands.Stacks;
-import net.minecraft.world.level.block.Blocks;
 
 import java.util.Map;
 
@@ -34,6 +32,7 @@ public final class ObtainSkill implements Skill {
 	private String childLabel;
 	private int steps;
 	private int failures;
+	private int pause;
 	private String failure;
 
 	public ObtainSkill(Choice wanted, int count, String label) {
@@ -69,6 +68,10 @@ public final class ObtainSkill implements Skill {
 			} else {
 				child = null;
 			}
+			pause = dev.vry.waifuscam.control.Human.pause(); // um respiro entre um passo e outro
+		}
+		if (pause-- > 0) {
+			return Status.RUNNING;
 		}
 		if (++steps > MAX_STEPS) {
 			return fail("isso está levando passos demais");
@@ -76,11 +79,7 @@ public final class ObtainSkill implements Skill {
 
 		GameKnowledge knowledge = GameKnowledge.of(ctx.server());
 		Map<String, Integer> inv = Stacks.counts(ctx.player().getInventory());
-		boolean table = !BlockFinder.find(ctx.level(), ctx.player().blockPosition(), 12, 1,
-				p -> ctx.level().getBlockState(p).is(Blocks.CRAFTING_TABLE)).isEmpty();
-		boolean furnace = !BlockFinder.find(ctx.level(), ctx.player().blockPosition(), 12, 1,
-				p -> ctx.level().getBlockState(p).is(Blocks.FURNACE)).isEmpty();
-		Plan plan = new Planner(knowledge).plan(wanted, count, inv, new Planner.World(table, furnace));
+		Plan plan = new Planner(knowledge).plan(wanted, count, inv, Queries.world(ctx.player()));
 		if (plan.done()) {
 			return Status.SUCCEEDED;
 		}
@@ -114,6 +113,11 @@ public final class ObtainSkill implements Skill {
 	private Status fail(String reason) {
 		failure = reason;
 		return Status.FAILED;
+	}
+
+	@Override
+	public boolean patient() {
+		return child != null && child.patient();
 	}
 
 	@Override

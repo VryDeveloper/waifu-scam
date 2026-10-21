@@ -11,7 +11,7 @@ username = "Lumi"         # nome de player no jogo: 3 a 16 letras, números ou _
 [skin]
 # Escolha uma das duas formas (ou nenhuma, para a skin padrão):
 # username = "NomeDeUmaConta"   # copia a skin atual de uma conta do Minecraft
-# file = "skin.png"              # PNG 64x64 nesta pasta; precisa de MINESKIN_API_KEY no .env
+file = "skin.png"                # PNG 64x64 nesta pasta (assinado pelo MineSkin; chave opcional)
 model = "slim"                   # "slim" (braços finos) ou "classic"
 
 [needs]
@@ -28,7 +28,9 @@ curiosity = 1.0
 [will]
 # Vontade própria (fase 5): o que ela faz quando ninguém pede nada.
 enabled = true
-think_every = 180         # segundos parada até decidir sozinha o que fazer (gasta 1 chamada de IA)
+autopilot = true          # livre, ela segue os objetivos dela (picareta, espada, comida, fornalha, ferro...)
+goal_idle = 15            # segundos parada até pegar o próximo objetivo
+think_every = 150         # segundos parada até a IA pensar livremente (conversa, ideia nova)
 shelter_at_night = true   # cava um abrigo quando anoitece e ela está ao ar livre
 hungry_think_every = 180  # com fome e sem comida, pensa no que fazer a cada N segundos
 
@@ -37,9 +39,9 @@ hungry_think_every = 180  # com fome e sem comida, pensa no que fazer a cada N s
 enabled = []
 
 [chat]
-greeting = "oi gente! cheguei"   # o que ela fala ao entrar no mundo
+greeting = "oii, cheguei hehe"   # o que ela fala ao entrar no mundo (quando a IA não responde)
 proactive_interval = 60   # segundos mínimos entre falas espontâneas
-typing_speed = 12         # caracteres por segundo, para parecer que está digitando
+typing_speed = 25         # caracteres por segundo, para parecer que está digitando
 
 [world]
 fair_play = false         # false = raio-x liberado

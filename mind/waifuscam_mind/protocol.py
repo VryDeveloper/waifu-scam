@@ -130,6 +130,32 @@ class ErrorMsg(Envelope):
     message: str
 
 
+class Query(Envelope):
+    """Pergunta rápida ao corpo, sem fazer nada no mundo (ex.: query "plan", args {item, count})."""
+
+    type: Literal["query"] = "query"
+    id: str
+    query: str
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+class QueryResult(Envelope):
+    """Resposta do corpo a um query. Os campos dependem da pergunta."""
+
+    type: Literal["query.result"] = "query.result"
+    id: str
+    ok: bool = True
+    failure: str | None = None
+
+
+class MemoryBlocks(Envelope):
+    """Onde ela lembra de ter visto as coisas neste mundo (de sessões anteriores)."""
+
+    type: Literal["memory.blocks"] = "memory.blocks"
+    world: str = ""
+    blocks: list[dict[str, Any]] = Field(default_factory=list)
+
+
 # ---- ambos os sentidos -----------------------------------------------------
 
 
@@ -155,6 +181,9 @@ _BY_TYPE: dict[str, type[Envelope]] = {
     "skill.done": SkillDone,
     "skill.failed": SkillFailed,
     "error": ErrorMsg,
+    "memory.blocks": MemoryBlocks,
+    "query": Query,
+    "query.result": QueryResult,
     "ping": Ping,
     "pong": Pong,
 }

@@ -1,5 +1,6 @@
 package dev.vry.waifuscam.skill;
 
+import dev.vry.waifuscam.control.Human;
 import dev.vry.waifuscam.craft.GameKnowledge;
 import dev.vry.waifuscam.craft.Knowledge.CraftRecipe;
 import dev.vry.waifuscam.craft.Names;
@@ -23,7 +24,6 @@ import java.util.List;
  * por perto ou coloca a dela no chão.
  */
 public final class CraftSkill implements Skill {
-	private static final int TICKS_PER_CRAFT = 6;
 	private static final int TABLE_SEARCH_RADIUS = 16;
 
 	private final CraftRecipe recipe;
@@ -33,7 +33,7 @@ public final class CraftSkill implements Skill {
 	private BlockPos table;
 	private Skill walk;
 	private int done;
-	private int wait;
+	private int wait = Human.craft();
 	private String failure;
 
 	public CraftSkill(CraftRecipe recipe, int times, GameKnowledge knowledge) {
@@ -73,7 +73,7 @@ public final class CraftSkill implements Skill {
 			return fail("não deu para craftar " + Names.pretty(recipe.output()) + ": " + error);
 		}
 		ctx.player().swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
-		wait = TICKS_PER_CRAFT;
+		wait = Human.craft();
 		return ++done >= times ? Status.SUCCEEDED : Status.RUNNING;
 	}
 

@@ -14,6 +14,12 @@ public record SkillContext(MinecraftServer server, CompanionPlayer player, Contr
 		return player.level();
 	}
 
+	/** Os olhos dela (o que ela vê e lembra de ter visto), ou null fora do jogo. */
+	public dev.vry.waifuscam.bot.Eyes eyes() {
+		var mod = dev.vry.waifuscam.WaifuScamMod.instance();
+		return mod != null && mod.companions() != null ? mod.companions().eyes() : null;
+	}
+
 	/**
 	 * Bloco dos pés. Em cima de laje ou escada a posição cai dentro do próprio
 	 * bloco, então sobe um quando ele não é passável.

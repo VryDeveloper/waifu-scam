@@ -91,6 +91,23 @@ Evento novo do Corpo: `event` `remember_place` (`name`, `x`, `y`, `z`, `dimensio
 
 Habilidade nova: `sleep` (dormir na cama livre mais perto). `shelter` passa a preferir cama quando tem uma por perto. Armadura e escudo são vestidos sozinhos pelo corpo, sem mensagem nova.
 
+## Fase 8: visão
+
+`state` ganha `world` (pasta do mundo), `seeing` e `players_near`:
+
+- `seeing`: o que está no campo de visão dela agora. O corpo lança raios num cone de ~110° para onde a cabeça está virada, uma vez por segundo, e só vê o que tem linha de visão (no escuro, só de perto). Traz `looking_at`, `biome`, `entities` (`type`, `name`, `distance`, `dir`, `hostile`) e `blocks` (`block`, `distance`, `dir`, `count`).
+- `players_near`: players a até 64 blocos, com `dir` relativa a ela e `visible`.
+
+Eventos novos do Corpo: `event` `seen` (`block`, `x`, `y`, `z`, `dimension`, `rare`) quando ela vê pela primeira vez algo que vale lembrar (minério, baú, sino de vila, spawner...), e `event` `gone` quando uma lembrança deixou de valer (minerado).
+
+Mensagem nova da Mente: `memory.blocks` (`world`, `blocks`), mandada no primeiro `state` de cada mundo, com tudo que ela lembra de ter visto ali. O corpo usa isso para voltar a um minério que viu antes quando precisa dele.
+
+## Fase 9: receitas
+
+Mensagens novas: `query` (Mente → Corpo: `id`, `query`, `args`) e `query.result` (Corpo → Mente: o mesmo `id`, `ok`, `failure` e os campos da resposta). O corpo responde na hora, sem mexer no mundo.
+
+`query` `plan` (`item`, `count`): como conseguir o item agora. A resposta traz a receita do jogo (`recipe`: `kind` craft/smelt/gather/hunt, ingredientes, se precisa de bancada) e o passo a passo que ela faria com o inventário dela e com o que tem por perto (`steps`, `have`, `table_nearby`, `furnace_nearby`). É o mesmo planejador do `obtain`. Quando não dá, `ok` é false e `failure` diz o que falta.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

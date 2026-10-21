@@ -98,6 +98,11 @@ public final class GiveSkill implements Skill {
 	}
 
 	@Override
+	public boolean patient() {
+		return child != null && child.patient();
+	}
+
+	@Override
 	public String failureReason() {
 		return failure;
 	}

@@ -107,7 +107,8 @@ public final class Combat {
 		if (dist < 1.2) {
 			controls.forward(-0.5F); // um passo para trás para não ficar dentro do bicho
 		}
-		if (me.getAttackStrengthScale(0.5F) >= 0.95F && me.isWithinEntityInteractionRange(target, 0)) {
+		boolean facing = dev.vry.waifuscam.control.Controls.aimed(me, target.getEyePosition().add(0, -0.3, 0), 30);
+		if (facing && me.getAttackStrengthScale(0.5F) >= 0.95F && me.isWithinEntityInteractionRange(target, 0)) {
 			me.attack(target);
 			me.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
 			me.resetAttackStrengthTicker();

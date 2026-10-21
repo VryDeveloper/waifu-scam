@@ -71,6 +71,44 @@ Os comandos `/waifu ...` obedecem na hora (servem para testar o corpo). O chat p
 | 7.3 | `/give Lumi iron_chestplate` e `/give Lumi shield` | Em alguns segundos ela veste o peitoral e põe o escudo na outra mão |
 | 7.4 | Ative o plugin de exemplo (`[plugins] enabled = ["relogio"]` no `character.toml`), reinicie a Mente e pergunte `lumi que horas são?` | Ela sabe a hora do mundo real |
 
+## Correções do primeiro teste
+
+| # | Faça | Esperado |
+|---|---|---|
+| C.1 | `lumi pega madeira` e observe | Ela vira a cabeça aos poucos, mira, para um instante entre um bloco e outro |
+| C.2 | Converse rápido (3 ou 4 mensagens seguidas) | Ela responde em poucos segundos, sem ficar muda |
+| C.3 | Bata num iron golem e diga `lumi me ajuda a bater nele` | Ela ataca o mesmo golem |
+| C.4 | `lumi ataca aquele zumbi` | Ela ataca zumbis |
+| C.5 | `lumi coloca a fornalha no chão` (com fornalha no inventário dela) | Ela coloca de verdade |
+| C.6 | `lumi joga uma tocha pra mim` / `lumi pega o que tá no chão` | Ela joga / pega |
+| C.7 | `lumi abre a porta` perto de uma porta | Ela vai até a porta e abre |
+| C.8 | `lumi quebra a fornalha` | Ela quebra e pega a fornalha |
+| C.9 | De noite, com ela no abrigo, diga `lumi vem aqui` | Ela sai do buraco e vem |
+| C.10 | Peça algo que ela não sabe fazer (`lumi constrói uma casa`) | Ela diz que ainda não consegue, em vez de fingir que fez |
+
+## Fase 8 — Visão, mineração e jeito de companheira
+
+| # | Faça | Esperado |
+|---|---|---|
+| 8.1 | Fique na frente dela e pergunte `lumi o que você tá vendo?` | Ela fala de você e do que está à vista. Fique atrás dela e pergunte de novo: ela não diz que está te vendo |
+| 8.2 | Leve ela até uma caverna com minério de ferro à vista, saia de lá e depois peça `lumi pega 5 ferro` | Ela volta até onde viu o ferro, em vez de cavar do zero |
+| 8.3 | Reinicie a Mente e o jogo, depois pergunte `lumi onde tinha ferro?` | Ela lembra (a memória fica em `mind/data/memory/`) |
+| 8.4 | `lumi pega 3 diamantes` (com picareta de ferro) | Ela cava em escada até perto do Y -53 e abre túnel de lá, pondo tocha se tiver |
+| 8.5 | Deixe ela ver um diamante ou uma vila | Ela comenta, uma vez |
+| 8.6 | Deixe ela sozinha uns minutos | Ela evolui as ferramentas em silêncio; nada de avisar cada picareta ou fornalha |
+| 8.7 | A skin | É a skin nova (PNG em `characters/lumi/skin.png`) |
+
+## Fase 9 — Receitas
+
+| # | Faça | Esperado |
+|---|---|---|
+| 9.1 | `/waifu plan white_bed` | Mostra no chat o passo a passo que ela faria agora (caçar ovelha, tábuas, bancada, cama) |
+| 9.2 | `lumi faz uma cama pra mim` | Ela topa e faz: tosquia (se tiver tesoura) ou caça ovelha branca, faz tábuas, bancada e a cama |
+| 9.3 | Dê `raw_iron` para ela e diga `lumi faz ferro` perto de uma fornalha | Ela usa a fornalha que já está ali, sem fazer outra |
+| 9.4 | `lumi como faz uma bússola?` | Responde curto com a receita certa (4 lingotes de ferro + redstone, na bancada) |
+| 9.5 | Sem picareta e sem pedra por perto, `lumi faz um balde` | Ela diz o que falta em vez de prometer |
+| 9.6 | No log da Mente | Ao subir: `Nomes de ... itens e blocos, da tradução do jogo`; a cada pedido: `Plano para ...` |
+
 ## Se algo travar
 
 - Ela parou no meio de uma tarefa: `/waifu status` mostra o que ela acha que está fazendo; `/waifu stop` destrava.

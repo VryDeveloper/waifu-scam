@@ -203,7 +203,7 @@ async def test_tells_when_a_requested_job_is_done(lumi):
     await b.on_event(mouth, chat("Vry", "faz uma picareta?"))
     await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="obtain"))
     assert mouth.said == ["bora", "pronto, tá aqui sua picareta"]
-    assert "acabou de terminar: obtain stone_pickaxe 1" in llm.calls[1][-1]["content"]
+    assert "terminar o que Vry pediu: obtain stone_pickaxe 1" in llm.calls[1][-1]["content"]
     # habilidade que ela não começou (comando) não gera comentário
     await b.on_skill_ended(mouth, p.SkillDone(id="cmd-7", skill="obtain"))
     assert len(llm.calls) == 2

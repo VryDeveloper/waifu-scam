@@ -9,6 +9,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.item.Items;
 
 import java.util.Comparator;
 import java.util.Optional;
@@ -40,10 +43,25 @@ public final class HuntSkill implements Skill {
 	private String failure;
 
 	public HuntSkill(Set<String> entityTypes, Set<String> items, int count, String label) {
-		this.wanted = e -> entityTypes.contains(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+		String color = woolColor(items);
+		Predicate<LivingEntity> type = e -> entityTypes.contains(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+		// Lã: só ovelha da cor certa e que ainda tem lã.
+		this.wanted = color == null ? type : type.and(e -> e instanceof Sheep s && !s.isSheared()
+				&& s.getColor().getSerializedName().equals(color));
 		this.items = items;
 		this.count = Math.max(1, count);
 		this.label = label;
+	}
+
+	/** Atacar um bicho específico (o que o player está atacando, por exemplo). */
+	public static HuntSkill target(LivingEntity target, String label) {
+		java.util.UUID id = target.getUUID();
+		return new HuntSkill(e -> e.getUUID().equals(id), 1, label);
+	}
+
+	/** Atacar bichos destes tipos (iron_golem, zombie...), count abates. */
+	public static HuntSkill types(Set<String> entityTypes, int count, String label) {
+		return new HuntSkill(e -> entityTypes.contains(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString()), count, label);
 	}
 
 	/** Lutar contra qualquer bicho hostil por perto (count abates). */
@@ -66,6 +84,34 @@ public final class HuntSkill implements Skill {
 	@Override
 	public String describe() {
 		return "caçando " + label;
+	}
+
+	/** "white" se o pedido é só lã branca; null se não é lã de uma cor. */
+	private static String woolColor(Set<String> items) {
+		if (items.size() != 1) {
+			return null;
+		}
+		String id = items.iterator().next().replace("minecraft:", "");
+		return id.endsWith("_wool") ? id.substring(0, id.length() - "_wool".length()) : null;
+	}
+
+	/** Com tesoura, tosquia em vez de matar (3 lãs e a ovelha fica bem). */
+	private boolean shear(ServerPlayer me, LivingEntity target, SkillContext ctx) {
+		if (!(target instanceof Sheep sheep) || !sheep.readyForShearing()) {
+			return false;
+		}
+		var inv = me.getInventory();
+		int slot = Stacks.find(inv, s -> s.is(Items.SHEARS));
+		if (slot < 0) {
+			return false;
+		}
+		Stacks.hold(inv, slot);
+		ctx.controls().lookAt(sheep.getEyePosition());
+		me.interactOn(sheep, InteractionHand.MAIN_HAND, sheep.getBoundingBox().getCenter().subtract(sheep.position()));
+		me.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
+		pickupTicks = 0;
+		this.target = null;
+		return true;
 	}
 
 	private int have(SkillContext ctx) {
@@ -117,6 +163,9 @@ public final class HuntSkill implements Skill {
 		}
 
 		double dist = target.distanceTo(me);
+		if (dist <= 3 && !items.isEmpty() && shear(me, target, ctx)) {
+			return Status.RUNNING;
+		}
 		if (dist <= 4 && me.hasLineOfSight(target)) {
 			Combat.fight(me, target, ctx.controls());
 			return Status.RUNNING;

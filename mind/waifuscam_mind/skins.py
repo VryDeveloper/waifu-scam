@@ -4,7 +4,7 @@ Duas fontes, configuradas em [skin] do character.toml:
 
 - username = "Conta"  → copia a skin atual dessa conta (API pública da Mojang, sem chave)
 - file = "skin.png"   → envia o PNG ao MineSkin, que devolve a textura assinada
-                        (precisa de MINESKIN_API_KEY, grátis em account.mineskin.org/keys)
+                        (MINESKIN_API_KEY é opcional; sem ela o limite de uso é menor)
 
 O resultado fica em cache em disco: o PNG só é enviado de novo se mudar.
 Nada aqui derruba a Mente: se der errado, a personagem entra com a skin padrão.
@@ -87,16 +87,12 @@ class SkinResolver:
         cached = self._cache_get(key)
         if cached:
             return cached
-        if not self.mineskin_key:
-            log.warning(
-                "Skin em arquivo precisa de MINESKIN_API_KEY no .env (grátis em account.mineskin.org/keys). "
-                "Usando a skin padrão por enquanto."
-            )
-            return None
+        # Sem chave o MineSkin também assina (com limite menor); a chave só deixa mais rápido.
+        headers = {"Authorization": f"Bearer {self.mineskin_key}"} if self.mineskin_key else {}
         async with self._http(timeout=60) as http:
             r = await http.post(
                 MINESKIN_GENERATE,
-                headers={"Authorization": f"Bearer {self.mineskin_key}"},
+                headers=headers,
                 data={"variant": variant, "visibility": "unlisted", "name": path.stem[:20]},
                 files={"file": (path.name, data, "image/png")},
             )

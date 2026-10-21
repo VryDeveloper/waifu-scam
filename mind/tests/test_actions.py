@@ -81,3 +81,22 @@ def test_give_defaults_to_speaker_but_accepts_online_name():
     assert resolve("[ação: give me bread 2]", SKILLS, "Vry", online)[1] == Action(
         "give", {"player": "Vry", "item": "bread", "count": 2}
     )
+
+
+def test_player_name_anywhere():
+    from waifuscam_mind import protocol as p
+
+    attack = p.SkillSpec(
+        name="attack",
+        params={
+            "type": "object",
+            "properties": {"target": {"type": "string"}, "player": {"type": "string"}, "count": {"type": "integer"}},
+        },
+    )
+    online = ["Lumi", "Vry"]
+    assert resolve("[ação: attack golem Vry]", [attack], "Vry", online)[1] == Action(
+        "attack", {"target": "golem", "player": "Vry"}
+    )
+    assert resolve("[ação: attack iron golem]", [attack], "Vry", online)[1] == Action(
+        "attack", {"target": "iron_golem", "player": "Vry"}
+    )

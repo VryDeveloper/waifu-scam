@@ -15,7 +15,7 @@ class FakeLLM:
         self.fail = fail
         self.calls: list[list[dict]] = []
 
-    async def chat(self, messages, *, max_tokens=200):
+    async def chat(self, messages, *, max_tokens=200, background=False):
         self.calls.append(messages)
         if self.fail:
             raise AllProvidersFailed("tudo fora")
@@ -121,7 +121,7 @@ async def test_prompt_has_persona_situation_rules_and_history(lumi):
     assert "Você é a Lumi" in system["content"]
     assert "Sua fome: 18/20" in system["content"]
     assert "Online com você: Vry" in system["content"]
-    assert "Regras do chat" in system["content"]
+    assert "## Regras" in system["content"]
     assert rest == [
         {"role": "user", "content": "Vry: oi"},
         {"role": "assistant", "content": "a"},
@@ -133,7 +133,7 @@ async def test_greets_on_spawn_with_llm_and_falls_back_when_ai_is_down(lumi):
     mouth = FakeMouth()
     await brain(lumi, FakeLLM("cheguei, galera!")).on_event(mouth, p.Event(event="spawned"))
     await brain(lumi, FakeLLM(fail=True)).on_event(mouth, p.Event(event="spawned"))
-    assert mouth.said == ["cheguei, galera!", "oi gente! cheguei"]
+    assert mouth.said == ["cheguei, galera!", "oii, cheguei hehe"]
 
 
 async def test_death_comment_has_cooldown(lumi):
@@ -206,6 +206,10 @@ async def test_comments_on_real_failures_only(lumi):
     llm = FakeLLM("aff, a Ana nem tá aqui", "travei")
     mouth = FakeMouth()
     b = brain(lumi, llm, clock=clock)
+    for i in range(1, 5):  # todas pedidas pelo Vry
+        b._started[f"mind-{i}"] = ("follow", {"player": "Ana"}, "Vry")
+    b._started["mind-9"] = ("obtain", {"item": "furnace"}, None)  # objetivo dela: falha em silêncio
+    await b.on_skill_ended(mouth, p.SkillFailed(id="mind-9", skill="obtain", reason="sem pedra"))
     await b.on_skill_ended(mouth, p.SkillFailed(id="mind-1", skill="follow", reason="Ana não está online"))
     await b.on_skill_ended(mouth, p.SkillFailed(id="mind-2", skill="follow", reason="mandaram parar", cancelled=True))
     await b.on_skill_ended(mouth, p.SkillFailed(id="mind-3", skill="goto", reason="fiquei presa"))  # cooldown
@@ -262,3 +266,39 @@ async def test_me_da_becomes_give(lumi):
     b2 = brain(lumi, FakeLLM("bora\n[ação: obtain torch 4]"))
     await b2.on_event(mouth2, chat("Vry", "lumi faz 4 tochas"))
     assert mouth2.started == [("obtain", {"item": "torch", "count": 4})]
+
+
+async def test_promise_without_action_is_repaired(lumi):
+    llm = FakeLLM("bora, tô indo", "[ação: follow Vry]")
+    mouth = FakeMouth()
+    await brain(lumi, llm).on_event(mouth, chat("Vry", "lumi vem comigo, me segue"))
+    assert mouth.started == [("follow", {"player": "Vry"})] and mouth.said == ["bora, tô indo"]
+    assert "Sua resposta: bora, tô indo" in llm.calls[1][-1]["content"]
+
+
+async def test_impossible_promise_becomes_honest(lumi):
+    llm = FakeLLM("coloquei a fornalha no chão", "isso eu ainda não sei fazer, foi mal")
+    mouth = FakeMouth()
+    await brain(lumi, llm).on_event(mouth, chat("Vry", "lumi coloca a fornalha no chão"))
+    assert mouth.started == [] and mouth.said == ["isso eu ainda não sei fazer, foi mal"]
+
+
+async def test_small_talk_is_not_repaired(lumi):
+    llm = FakeLLM("vou ficar de boa aqui kkk")
+    mouth = FakeMouth()
+    await brain(lumi, llm).on_event(mouth, chat("Vry", "tudo bem com vc?"))
+    assert mouth.said == ["vou ficar de boa aqui kkk"] and mouth.started == []  # a conferência disse OK
+
+
+async def test_spontaneous_promise_is_also_checked(lumi):
+    llm = FakeLLM("vou montar um abrigo pra gente", "[ação: shelter]")
+    mouth = FakeMouth()
+    await brain(lumi, llm).on_event(mouth, chat("Vry", "e agora?"))
+    assert mouth.started == [("shelter", {})]
+
+
+def test_glued_repetition_is_cleaned():
+    assert clean_reply("não deu, preciso de fornalha.não deu, preciso de fornalha.", ["Lumi"]) == [
+        "não deu, preciso de fornalha."
+    ]
+    assert clean_reply("oi\noi", ["Lumi"]) == ["oi"]

@@ -19,4 +19,12 @@ public interface Skill {
 
 	/** Motivo da falha, em português, quando tick() devolveu FAILED. */
 	String failureReason();
+
+	/**
+	 * true quando ficar parada faz parte do trabalho (esperar a fornalha, dormir,
+	 * seguir alguém que parou). O vigia de "travou" não mexe nessas.
+	 */
+	default boolean patient() {
+		return false;
+	}
 }

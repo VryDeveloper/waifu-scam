@@ -7,7 +7,10 @@ import dev.vry.waifuscam.craft.GameKnowledge;
 import dev.vry.waifuscam.craft.Knowledge.Choice;
 import dev.vry.waifuscam.craft.Knowledge.Source;
 import dev.vry.waifuscam.craft.Names;
+import dev.vry.waifuscam.hands.Lookup;
 import dev.vry.waifuscam.hands.Stacks;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.LivingEntity;
 import dev.vry.waifuscam.pathing.LevelTerrain;
 import dev.vry.waifuscam.pathing.Pos;
 import net.minecraft.server.MinecraftServer;
@@ -163,14 +166,82 @@ public final class SkillRegistry {
 				}));
 
 		register(new Spec("attack",
-				"Lutar contra os monstros hostis por perto (count = quantos derrotar).",
-				params("{\"type\":\"object\",\"properties\":{" + COUNT + "}}"),
-				(args, server, me) -> HuntSkill.hostiles(me, count(args))));
+				"Atacar: um tipo de bicho (target: iron_golem, zombie, golem, zumbi...), o bicho que um player está atacando "
+						+ "ou olhando (player: quem pediu ajuda), ou, sem nada, os monstros por perto.",
+				params("{\"type\":\"object\",\"properties\":{\"target\":{\"type\":\"string\",\"description\":\"tipo de bicho\"},"
+						+ PLAYER + "," + COUNT + "}}"),
+				(args, server, me) -> {
+					if (args.has("target") && !args.get("target").getAsString().isBlank()) {
+						String raw = args.get("target").getAsString();
+						Set<String> types = Lookup.entities(raw);
+						if (types.isEmpty()) {
+							throw new SkillException("não conheço o bicho '" + raw + "'");
+						}
+						return HuntSkill.types(types, count(args), Names.pretty(raw));
+					}
+					if (args.has("player")) {
+						ServerPlayer friend = player(server, args);
+						LivingEntity target = HandSkills.helpTarget(me, friend)
+								.orElseThrow(() -> new SkillException("não vi nenhum bicho perto de " + friend.getGameProfile().name()));
+						return HuntSkill.target(target, Names.pretty(BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).getPath()));
+					}
+					return HuntSkill.hostiles(me, count(args));
+				}));
 
 		register(new Spec("shelter",
 				"Passar a noite em segurança: cava um buraco, fecha em cima e sai de manhã (numa casa, só espera).",
 				params("{\"type\":\"object\",\"properties\":{}}"),
 				(args, server, me) -> new ShelterSkill()));
+
+		// ---- mãos, parte 2 (depois do primeiro teste) ----
+
+		register(new Spec("smelt",
+				"Fundir ou assar até ter mais `count` do item (iron_ingot, cooked_beef, glass), conseguindo o que faltar.",
+				params("{\"type\":\"object\",\"properties\":{" + ITEM + "," + COUNT + "},\"required\":[\"item\"]}"),
+				(args, server, me) -> {
+					Choice c = choice(args);
+					return new ObtainSkill(c, Stacks.count(me.getInventory(), c.items()) + count(args), label(args));
+				}));
+
+		register(new Spec("place",
+				"Colocar no chão, perto dela, um bloco do inventário (bancada, fornalha, baú, tocha...).",
+				params("{\"type\":\"object\",\"properties\":{" + ITEM + "},\"required\":[\"item\"]}"),
+				(args, server, me) -> new HandSkills.Place(choice(args), label(args))));
+
+		register(new Spec("drop",
+				"Jogar itens do inventário no chão, na frente dela.",
+				params("{\"type\":\"object\",\"properties\":{" + ITEM + "," + COUNT + "},\"required\":[\"item\"]}"),
+				(args, server, me) -> new HandSkills.Drop(choice(args), args.has("count") ? count(args) : 64 * 36, label(args))));
+
+		register(new Spec("pickup",
+				"Pegar itens caídos no chão por perto (sem item: pega tudo).",
+				params("{\"type\":\"object\",\"properties\":{" + ITEM + "}}"),
+				(args, server, me) -> args.has("item")
+						? new HandSkills.Pickup(choice(args), label(args)) : new HandSkills.Pickup(null, "as coisas")));
+
+		register(new Spec("use",
+				"Clicar com o botão direito no bloco mais perto desse tipo: abrir porta, puxar alavanca, apertar botão.",
+				params("{\"type\":\"object\",\"properties\":{\"block\":{\"type\":\"string\",\"description\":\"door, lever, button, porta...\"}},\"required\":[\"block\"]}"),
+				(args, server, me) -> {
+					String raw = args.get("block").getAsString();
+					Set<net.minecraft.world.level.block.Block> blocks = Lookup.blocks(raw);
+					if (blocks.isEmpty()) {
+						throw new SkillException("não conheço o bloco '" + raw + "'");
+					}
+					return new HandSkills.Use(blocks, Names.pretty(raw));
+				}));
+
+		register(new Spec("mine",
+				"Quebrar `count` blocos desse tipo por perto, inclusive colocados (ex.: a fornalha que ela pôs), e pegar o que cair.",
+				params("{\"type\":\"object\",\"properties\":{\"block\":{\"type\":\"string\"}," + COUNT + "},\"required\":[\"block\"]}"),
+				(args, server, me) -> {
+					String raw = args.get("block").getAsString();
+					Set<net.minecraft.world.level.block.Block> blocks = Lookup.blocks(raw);
+					if (blocks.isEmpty()) {
+						throw new SkillException("não conheço o bloco '" + raw + "'");
+					}
+					return new HandSkills.Mine(blocks, count(args), Names.pretty(raw));
+				}));
 
 		// ---- fase 7 ----
 

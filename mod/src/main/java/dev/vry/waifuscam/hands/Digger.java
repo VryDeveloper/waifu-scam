@@ -1,6 +1,7 @@
 package dev.vry.waifuscam.hands;
 
 import dev.vry.waifuscam.control.Controls;
+import dev.vry.waifuscam.control.Human;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
@@ -28,11 +29,20 @@ public final class Digger {
 	private float progress;
 	private boolean started;
 	private int ticks;
+	private int wait = Human.reaction();
 	private String failure;
 
+	private final boolean needDrops;
+
 	public Digger(ServerLevel level, BlockPos pos) {
+		this(level, pos, true);
+	}
+
+	/** needDrops = false: quebra mesmo sem a ferramenta certa (cavar abrigo, abrir caminho). */
+	public Digger(ServerLevel level, BlockPos pos, boolean needDrops) {
 		this.pos = pos.immutable();
 		this.block = level.getBlockState(pos).getBlock();
+		this.needDrops = needDrops;
 	}
 
 	public BlockPos pos() {
@@ -55,13 +65,17 @@ public final class Digger {
 		if (++ticks > TIMEOUT_TICKS) {
 			return fail(player, "esse bloco não quebra");
 		}
-		if (!Tools.equipFor(player, state)) {
+		if (!Tools.equipFor(player, state) && needDrops) {
 			return fail(player, "não tenho ferramenta para isso");
 		}
 		controls.lookAt(Vec3.atCenterOf(pos));
 		Direction side = face(player, pos);
 		int maxY = level.getMaxY();
 
+		// Mira e reage antes de começar a bater, como uma pessoa.
+		if (!started && (wait-- > 0 || !Controls.aimed(player, Vec3.atCenterOf(pos), 25))) {
+			return Status.DIGGING;
+		}
 		if (!started) {
 			started = true;
 			player.gameMode.handleBlockBreakAction(pos, ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, side, maxY, -1);

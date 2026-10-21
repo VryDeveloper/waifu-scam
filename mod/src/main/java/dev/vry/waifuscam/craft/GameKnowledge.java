@@ -227,19 +227,54 @@ public final class GameKnowledge implements Knowledge {
 		drop(Items.MELON_SLICE, Blocks.MELON);
 		drop(Items.BAMBOO, Blocks.BAMBOO);
 		drop(Items.CACTUS, Blocks.CACTUS);
+		drop(Items.FLINT, Blocks.GRAVEL); // nem toda quebra solta: ela pega o que cair e repete
+		drop(Items.WHEAT_SEEDS, Blocks.SHORT_GRASS, Blocks.TALL_GRASS);
+		drop(Items.GLOWSTONE_DUST, Blocks.GLOWSTONE);
+		drop(Items.AMETHYST_SHARD, Blocks.AMETHYST_CLUSTER);
+		drop(Items.KELP, Blocks.KELP, Blocks.KELP_PLANT);
+		drop(Items.SWEET_BERRIES, Blocks.SWEET_BERRY_BUSH);
+		drop(Items.BROWN_MUSHROOM, Blocks.BROWN_MUSHROOM);
+		drop(Items.RED_MUSHROOM, Blocks.RED_MUSHROOM);
+		// Flores (corantes para camas e lãs coloridas)
+		drop(Items.DANDELION, Blocks.DANDELION);
+		drop(Items.POPPY, Blocks.POPPY);
+		drop(Items.BLUE_ORCHID, Blocks.BLUE_ORCHID);
+		drop(Items.ALLIUM, Blocks.ALLIUM);
+		drop(Items.AZURE_BLUET, Blocks.AZURE_BLUET);
+		drop(Items.RED_TULIP, Blocks.RED_TULIP);
+		drop(Items.ORANGE_TULIP, Blocks.ORANGE_TULIP);
+		drop(Items.WHITE_TULIP, Blocks.WHITE_TULIP);
+		drop(Items.PINK_TULIP, Blocks.PINK_TULIP);
+		drop(Items.OXEYE_DAISY, Blocks.OXEYE_DAISY);
+		drop(Items.CORNFLOWER, Blocks.CORNFLOWER);
+		drop(Items.LILY_OF_THE_VALLEY, Blocks.LILY_OF_THE_VALLEY);
 
 		// Caça (fase 5): carne crua vira comida na fornalha.
 		hunt(Items.BEEF, "cow", "mooshroom");
 		hunt(Items.LEATHER, "cow", "mooshroom");
 		hunt(Items.PORKCHOP, "pig");
 		hunt(Items.MUTTON, "sheep");
-		hunt(Stacks.item("white_wool"), "sheep");
+		// Lã de cada cor: a ovelha da cor certa (tosquiada com tesoura, se ela tiver).
+		for (net.minecraft.world.item.DyeColor color : net.minecraft.world.item.DyeColor.values()) {
+			hunt(Stacks.item(color.getSerializedName() + "_wool"), "sheep");
+		}
 		hunt(Items.CHICKEN, "chicken");
 		hunt(Items.FEATHER, "chicken");
 		hunt(Items.RABBIT, "rabbit");
 		hunt(Items.STRING, "spider");
 		hunt(Items.BONE, "skeleton");
 		hunt(Items.ROTTEN_FLESH, "zombie");
+		hunt(Items.GUNPOWDER, "creeper");
+		hunt(Items.SPIDER_EYE, "spider");
+		hunt(Items.ARROW, "skeleton");
+		hunt(Items.INK_SAC, "squid");
+		hunt(Items.GLOW_INK_SAC, "glow_squid");
+		hunt(Items.SLIME_BALL, "slime");
+		hunt(Items.ENDER_PEARL, "enderman");
+		hunt(Items.BLAZE_ROD, "blaze");
+		hunt(Items.RABBIT_HIDE, "rabbit");
+		hunt(Items.COD, "cod");
+		hunt(Items.SALMON, "salmon");
 	}
 
 	private void drop(Item item, Block... blocks) {

@@ -54,22 +54,46 @@ def usage(spec: p.SkillSpec) -> str:
     return " ou ".join(forms)
 
 
+# Dica curta de cada habilidade conhecida (o prompt fica pequeno; a descrição longa do corpo é o padrão).
+HINTS = {
+    "follow": "seguir alguém",
+    "goto": "ir até alguém, um lugar lembrado ou coordenadas",
+    "obtain": "ficar com n do item; minera, crafta e funde sozinha (ex.: obtain stone_pickaxe 1)",
+    "craft": "craftar mais n do item",
+    "collect": "minerar mais n de um recurso (#logs, cobblestone, coal...)",
+    "smelt": "fundir/assar até ter mais n do item (iron_ingot, cooked_beef)",
+    "mine": "quebrar n blocos de um tipo por perto (inclusive colocados)",
+    "place": "colocar um bloco do inventário no chão perto",
+    "drop": "jogar itens no chão",
+    "pickup": "pegar itens caídos por perto",
+    "use": "clicar com o botão direito num bloco perto (porta, alavanca, botão, baú)",
+    "eat": "comer",
+    "give": "entregar itens para alguém (consegue antes se faltar)",
+    "deposit": "guardar no baú (sem item: tudo menos ferramenta, arma, armadura e comida)",
+    "withdraw": "pegar do baú",
+    "hunt": "caçar cow, pig, sheep, chicken, rabbit",
+    "attack": "atacar: um tipo de bicho (iron_golem, zombie) ou o bicho que um player está atacando",
+    "shelter": "passar a noite num abrigo",
+    "sleep": "dormir na cama",
+    "stop": "parar tudo",
+}
+
+
+def _hint(spec: p.SkillSpec) -> str:
+    if spec.name in HINTS:
+        return HINTS[spec.name]
+    first = spec.description.split(". ")[0]
+    return first[:80]
+
+
 def describe_actions(skills: list[p.SkillSpec]) -> str:
     if not skills:
         return ""
-    lines = [
-        "## Ações",
-        "Além de falar, você consegue agir no jogo. Para agir, coloque UMA linha no fim da resposta só com a ação:",
-    ]
-    lines += [f"- {usage(s)}: {s.description}" for s in skills]
+    lines = ["## Ações (no fim da resposta, UMA linha só, e só se for fazer agora)"]
+    lines += [f"- {usage(s)}: {_hint(s)}" for s in skills]
     lines += [
-        "Use no máximo uma ação por resposta e só quando você decidir fazer aquilo agora",
-        "(alguém pediu e você topou, ou você quer). Se recusar ou adiar, não coloque ação.",
-        "Sem nome de player, a ação vale para quem falou com você. Itens vão pelo id em inglês do Minecraft",
-        "(oak_log, cobblestone, stone_pickaxe, torch, bread), e a quantidade é um número.",
-        "Nunca escreva a linha da ação no meio da frase, e não explique a ação: só fale normalmente e coloque a linha.",
-        "Para ADIAR um pedido (você topa, mas agora não dá: está com fome, é noite, está ocupada), use a mesma",
-        "ação com 'depois' no lugar de 'ação', ex.: [depois: obtain stone_pickaxe 1]. Você faz quando ficar livre.",
+        "Sem player, vale para quem falou com você. Itens pelo id em inglês (oak_log, torch); quantidade é número.",
+        "Para adiar, troque 'ação' por 'depois': [depois: obtain stone_pickaxe 1].",
     ]
     return "\n".join(lines)
 
@@ -112,7 +136,12 @@ def parse_args(spec: p.SkillSpec, raw: str, speaker: str | None, players: list[s
     # 1) quem: nome de quem está online, "me"/"mim", ou o único texto da ação
     texts = [n for n in rest if _kind(spec, n) == "string" and n != "player"]
     if "player" in rest:
-        first = tokens[0] if tokens else None
+        # Nome de quem está online em qualquer posição ("attack golem Vry").
+        for i, t in enumerate(tokens):
+            if i > 0 and t.lower() in online and t.lower() not in PRONOUNS:
+                args["player"] = _player(tokens.pop(i), players)
+                break
+        first = tokens[0] if tokens and "player" not in args else None
         if first is not None and first.lower() in PRONOUNS:
             tokens.pop(0)
         elif first is not None and (first.lower() in online or not texts):

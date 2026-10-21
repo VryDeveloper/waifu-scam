@@ -7,6 +7,7 @@ Fica num JSON em mind/data/memory/<personagem>.json (fora do Git):
 - notas: fatos soltos que ela decidiu guardar ("o Vry tem medo de aranha")
 - diário: resumos curtos do que aconteceu, escritos por ela mesma
 - promessas pendentes e as últimas falas da conversa, para continuar de onde parou
+- recursos: onde ela viu minérios, baús, vilas... (por mundo), vindos dos olhos do corpo
 
 A IA grava com tags no fim da resposta: [lembrar: base] guarda o lugar onde ela
 está; [nota: ...] guarda um fato. Ir para um lugar lembrado é [ação: goto base].
@@ -32,6 +33,8 @@ MAX_NOTES = 60
 MAX_PERSON_NOTES = 12
 MAX_DIARY = 14
 MAX_HISTORY = 30
+MAX_SPOTS_PER_BLOCK = 16
+SPOT_CLUSTER = 3  # blocos do mesmo tipo a até 3 de distância contam como um lugar só
 SAVE_EVERY = 20.0  # segundos entre gravações quando só mudou "visto por último"
 
 
@@ -79,6 +82,8 @@ class Memory:
         self.diary: list[DiaryEntry] = []
         self.promises: list[dict[str, Any]] = []
         self.history: list[dict[str, str]] = []
+        # mundo → bloco → [[x, y, z, dimensão, quando viu]]
+        self.resources: dict[str, dict[str, list[list[Any]]]] = {}
         self._dirty = False
         self._last_save = 0.0
         self.load()
@@ -99,6 +104,7 @@ class Memory:
         self.diary = [DiaryEntry(**d) for d in (data.get("diary") or [])]
         self.promises = list(data.get("promises") or [])
         self.history = list(data.get("history") or [])
+        self.resources = dict(data.get("resources") or {})
         log.info(
             "Memória carregada: %d lugares, %d pessoas, %d notas, %d dias no diário",
             len(self.places),
@@ -120,6 +126,7 @@ class Memory:
             "diary": [asdict(d) for d in self.diary],
             "promises": self.promises,
             "history": self.history[-MAX_HISTORY:],
+            "resources": self.resources,
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
@@ -161,6 +168,43 @@ class Memory:
             return False
         self._changed()
         return True
+
+    # ---- recursos (o que ela viu) -------------------------------------------------
+
+    def saw(self, world: str, block: str, x: int, y: int, z: int, dimension: str) -> bool:
+        """Ela viu um bloco que vale lembrar. Devolve True se é um lugar novo."""
+        block = block.removeprefix("minecraft:")
+        spots = self.resources.setdefault(world, {}).setdefault(block, [])
+        now = self._clock()
+        for spot in spots:
+            if spot[3] == dimension and abs(spot[0] - x) + abs(spot[1] - y) + abs(spot[2] - z) <= SPOT_CLUSTER:
+                spot[4] = now
+                self._dirty = True
+                return False
+        spots.append([int(x), int(y), int(z), dimension, now])
+        if len(spots) > MAX_SPOTS_PER_BLOCK:
+            spots.sort(key=lambda sp: sp[4])
+            del spots[0]
+        self._changed(important=False)
+        return True
+
+    def gone(self, world: str, block: str, x: int, y: int, z: int, dimension: str) -> None:
+        """O bloco não está mais lá (minerado)."""
+        spots = self.resources.get(world, {}).get(block.removeprefix("minecraft:"))
+        if not spots:
+            return
+        before = len(spots)
+        spots[:] = [sp for sp in spots if not (sp[0] == x and sp[1] == y and sp[2] == z and sp[3] == dimension)]
+        if len(spots) != before:
+            self._changed(important=False)
+
+    def spots(self, world: str) -> list[dict[str, Any]]:
+        """Todas as lembranças de um mundo, como dicionários."""
+        out = []
+        for block, spots in self.resources.get(world, {}).items():
+            for x, y, z, dim, when in spots:
+                out.append({"block": block, "x": x, "y": y, "z": z, "dimension": dim, "seen": when})
+        return out
 
     # ---- pessoas ---------------------------------------------------------------
 
