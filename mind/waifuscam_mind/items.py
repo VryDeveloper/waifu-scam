@@ -85,6 +85,12 @@ BASIC = {
     "apple": "Maçã",
     "cooked_beef": "Bife",
     "beef": "Carne Crua",
+    "porkchop": "Costeleta de Porco Crua",
+    "chicken": "Frango Cru",
+    "mutton": "Carne de Carneiro Crua",
+    "rabbit": "Coelho Cru",
+    "cod": "Bacalhau Cru",
+    "salmon": "Salmão Cru",
     "cooked_porkchop": "Costeleta de Porco Assada",
     "cooked_chicken": "Frango Assado",
     "cooked_mutton": "Carne de Carneiro Assada",
@@ -161,9 +167,11 @@ ALIASES = {
     "escada": "ladder",
     "escadinha": "ladder",
     "isqueiro": "flint_and_steel",
-    "carne": "cooked_beef",
-    "carne assada": "cooked_beef",
-    "comida": "cooked_beef",
+    # "carne" sozinha é ambíguo (de vaca? de porco?): só com o bicho
+    "carne de porco": "cooked_porkchop",
+    "porco assado": "cooked_porkchop",
+    "carne de vaca": "cooked_beef",
+    "frango": "cooked_chicken",
 }
 
 # Nomes curtos demais ou comuns demais na fala para contar sozinhos.

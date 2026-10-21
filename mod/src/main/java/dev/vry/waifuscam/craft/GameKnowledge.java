@@ -167,6 +167,19 @@ public final class GameKnowledge implements Knowledge {
 		return crafts.getOrDefault(item, List.of());
 	}
 
+	/** Receitas de fornalha que usam este item como entrada (porkchop → cooked_porkchop). */
+	public List<SmeltRecipe> smeltsFrom(String input) {
+		List<SmeltRecipe> out = new ArrayList<>();
+		for (List<SmeltRecipe> rs : smelts.values()) {
+			for (SmeltRecipe r : rs) {
+				if (r.input().accepts(input)) {
+					out.add(r);
+				}
+			}
+		}
+		return out;
+	}
+
 	@Override
 	public List<SmeltRecipe> smeltsFor(String item) {
 		return smelts.getOrDefault(item, List.of());

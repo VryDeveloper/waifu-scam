@@ -321,3 +321,26 @@ async def test_busy_notice_when_ai_is_out(lumi):
     mouth = FakeMouth()
     await brain(lumi, FakeLLM(fail=True)).on_event(mouth, chat("Vry", "lumi, o que você acha dessa casa?"))
     assert mouth.said == ["pera, minha cabeça deu uma travada. me fala de novo daqui a pouquinho?"]
+
+
+async def test_does_not_say_done_when_the_body_refuses_right_away(lumi):
+    llm = FakeLLM("pronto, amor, já joguei na fornalha\n[ação: obtain cooked_porkchop 1]")
+    b = brain(lumi, llm)
+
+    class RefusingMouth(FakeMouth):
+        async def start_skill(self, name, args=None):
+            skill_id = await super().start_skill(name, args)
+            await b.on_skill_ended(self, p.SkillFailed(id=skill_id, skill=name, reason="não tem porco por perto"))
+            return skill_id
+
+    mouth = RefusingMouth()
+    await b.on_event(mouth, chat("Vry", "lumi assa a carne de porco"))
+    assert mouth.said == ["ih, não deu: não tem porco por perto"]
+    assert "[ação" not in b.history[-1]["content"]
+
+
+def test_raw_meat_name_is_fixed(lumi):
+    from waifuscam_mind.brain.actions import Action
+
+    b = brain(lumi, FakeLLM())
+    assert b._item_ids(Action("smelt", {"item": "raw_porkchop", "count": 3})).args["item"] == "porkchop"

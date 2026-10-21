@@ -280,6 +280,8 @@ class ChatBrain:
         self._last_budget_notice = float("-inf")
         self._last_find_comment = float("-inf")
         self._last_busy_notice = float("-inf")
+        self._ended: dict[str, tuple[bool, str, bool]] = {}  # id → (falhou, motivo, cancelada)
+        self._told_failure: set[str] = set()
         self._world: str | None = None  # mundo do último state
         self._seeded = False  # o corpo já recebeu as lembranças de blocos deste mundo?
         self._state: p.State | None = None
@@ -493,6 +495,9 @@ class ChatBrain:
 
     async def on_skill_ended(self, mouth: Mouth, msg: p.SkillDone | p.SkillFailed) -> None:
         failed = isinstance(msg, p.SkillFailed)
+        self._ended[msg.id] = (failed, msg.reason if failed else "", failed and msg.cancelled)
+        while len(self._ended) > 50:
+            self._ended.pop(next(iter(self._ended)))
         self.will.skill_ended(msg.id, failed, failed and msg.cancelled)
         started = self._started.pop(msg.id, None)
         if isinstance(msg, p.SkillDone):
@@ -524,6 +529,8 @@ class ChatBrain:
             return
         if started is None or started[2] is None:
             return  # objetivo dela mesma: tenta outra coisa sem fazer drama no chat
+        if msg.id in self._told_failure:
+            return  # já contou que não deu, na própria resposta
         if self._clock() - self._last_failure_comment < FAILURE_COMMENT_COOLDOWN:
             return
         self._last_failure_comment = self._clock()
@@ -667,13 +674,24 @@ class ChatBrain:
             lines = [said for line in clean_reply(text, self._names) if (said := self.plugins.on_say(line))]
             if not lines and fallback and action is None:
                 lines = [fallback]
+            started_id = None
             if action is not None:
                 # Começa a andar antes de digitar: parece mais vivo.
-                await self._start(mouth, action.skill, action.args, partner)
-            for line in lines:
+                started_id = await self._start(mouth, action.skill, action.args, partner)
+            for i, line in enumerate(lines):
                 await self._sleep(min(MAX_TYPING_DELAY, len(line) / self.typing_speed))
+                ended = self._ended.get(started_id) if started_id and i == 0 else None
+                if ended is not None and ended[0] and not ended[2]:
+                    # O corpo recusou na hora (enquanto ela "digitava"): não fala que fez.
+                    log.info("A ação falhou antes da fala; trocando por: não deu (%s)", ended[1])
+                    self._told_failure.add(started_id)
+                    action = None
+                    line = f"ih, não deu: {ended[1]}"
+                    lines = [line]
                 await mouth.say(line)
                 self.history.append({"role": "assistant", "content": line})
+                if ended is not None and ended[0] and not ended[2]:
+                    break
             for kind, chosen in (("ação", action), ("depois", later)):
                 if chosen is None:
                     continue
@@ -807,6 +825,8 @@ class ChatBrain:
         raw = str(action.args["item"])
         if raw.startswith("#") or raw in self.items.names:
             return action
+        if raw.startswith("raw_") and raw[4:] in self.items.names:
+            return type(action)(action.skill, {**action.args, "item": raw[4:]})  # raw_porkchop → porkchop
         item = self.items.resolve(raw)
         return action if item is None else type(action)(action.skill, {**action.args, "item": item})
 

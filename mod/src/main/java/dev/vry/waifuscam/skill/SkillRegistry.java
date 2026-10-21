@@ -241,6 +241,19 @@ public final class SkillRegistry {
 				params("{\"type\":\"object\",\"properties\":{" + ITEM + "," + COUNT + "},\"required\":[\"item\"]}"),
 				(args, server, me) -> {
 					Choice c = choice(args);
+					GameKnowledge k = GameKnowledge.of(server);
+					// Pediram o que vai NA fornalha ("smelt porkchop"): assa e conta o resultado.
+					if (c.items().stream().allMatch(i -> k.smeltsFor(i).isEmpty())) {
+						var from = c.items().stream().flatMap(i -> k.smeltsFrom(i).stream()).toList();
+						if (!from.isEmpty()) {
+							String output = from.get(0).output();
+							int raw = Stacks.count(me.getInventory(), c.items());
+							int n = args.has("count") ? count(args) : Math.max(1, raw);
+							Choice out = Choice.of(output);
+							return new ObtainSkill(out, Stacks.count(me.getInventory(), out.items()) + n, Names.pretty(output));
+						}
+						throw new SkillException("isso não vai na fornalha");
+					}
 					return new ObtainSkill(c, Stacks.count(me.getInventory(), c.items()) + count(args), label(args));
 				}));
 

@@ -112,6 +112,8 @@ public final class Stacks {
 		}
 		if (item(id) != null) {
 			out.add(id);
+		} else if (id.startsWith("minecraft:raw_") && item(id.replace("minecraft:raw_", "minecraft:")) != null) {
+			out.add(id.replace("minecraft:raw_", "minecraft:")); // raw_porkchop → porkchop (carne crua não tem "raw" no id)
 		} else if (id.endsWith("es") && item(id.substring(0, id.length() - 2)) != null) {
 			out.add(id.substring(0, id.length() - 2)); // torches → torch
 		} else if (id.endsWith("s") && item(id.substring(0, id.length() - 1)) != null) {
