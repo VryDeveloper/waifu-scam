@@ -65,3 +65,33 @@ def test_anniversary_once(lumi, tmp_path):  # noqa: F811
     if lumi.beloved:
         assert "uma semana" in text
         assert b._anniversary() == ""  # só uma vez
+
+
+async def test_emote_tag_moves_the_body(lumi):  # noqa: F811
+    from .test_chat_brain import chat
+    from .test_vision import SendingMouth
+
+    mouth = SendingMouth()
+    b = make(lumi, FakeLLM("own, você é muito fofo\n[emote: coracoes]"), Clock())
+    await b.on_event(mouth, chat("Vry", "lumi você é linda"))
+    assert mouth.said == ["own, você é muito fofo"]
+    assert [(m.name, m.to) for m in mouth.sent if isinstance(m, p.Emote)] == [("coracoes", "Vry")]
+
+
+async def test_sits_after_coming_close_and_stays_while_he_is_still(lumi):  # noqa: F811
+    from .test_vision import SendingMouth
+
+    clock = Clock()
+    mouth = SendingMouth()
+    b = make(lumi, FakeLLM("x"), clock)
+    b.will.beloved = "Vry"
+    clock.t += 20
+    await b.on_state(mouth, state(inventory=GEARED, players_activity=[vry(distance=12, idle_seconds=40)]))
+    assert mouth.started[-1] == ("goto", {"player": "Vry"})
+    await b.on_skill_ended(mouth, p.SkillDone(id="mind-1", skill="goto"))
+    await b.on_state(mouth, state(inventory=GEARED, players_activity=[vry(distance=2, idle_seconds=60)]))
+    assert any(isinstance(m, p.Emote) and m.name == "sit" for m in mouth.sent)
+    n = len(mouth.started)
+    clock.t += 60
+    await b.on_state(mouth, state(inventory=GEARED, sitting=True, players_activity=[vry(distance=2, idle_seconds=120)]))
+    assert len(mouth.started) == n  # fica sentadinha

@@ -108,6 +108,7 @@ class Will:
     _escort_id: str | None = None  # follow que ela começou sozinha (caverna, luta)
     _escort_ok_at: float = 0.0
     sleep_retry_at: float = field(default=float("-inf"))
+    want_sit: bool = False
     last_help_announce: float = field(default=float("-inf"))
 
     def __post_init__(self) -> None:
@@ -144,7 +145,9 @@ class Will:
         if goal is not None and failed and not cancelled:
             self._blocked_until[goal.key] = self.clock() + 600
             log.info("Objetivo %s falhou; tento outra coisa por 10 min", goal.key)
-        elif goal is not None and not failed and goal.cooldown > 0:
+        if goal is not None and not failed and goal.key.startswith("bond:close"):
+            self.want_sit = True  # chegou pertinho dele: senta do lado
+        if goal is not None and not failed and goal.cooldown > 0:
             self._blocked_until[goal.key] = self.clock() + goal.cooldown  # cumprido: só daqui a pouco de novo
         if skill_id == self._shelter_id:
             self._shelter_id = None
@@ -174,6 +177,11 @@ class Will:
             await self._check_escort(mouth, s, now)
             return
         skills = {sk.name for sk in (getattr(mouth, "skills", None) or [])}
+        if self.want_sit:
+            self.want_sit = False
+            send = getattr(mouth, "send", None)
+            if send is not None:
+                await send(p.Emote(name="sit", to=self.beloved or None))
 
         # 0) ele foi dormir: ela vai dormir também (na cama mais perto, de preferência do lado dele)
         sleeper = partner_sleeping(s, self.beloved)
@@ -233,6 +241,12 @@ class Will:
         if now - self.last_chat < 15:
             return  # acabaram de falar com ela: espera um pouco antes de sair fazendo outra coisa
         needs = self.needs(state)
+
+        # Sentadinha do lado dele enquanto ele está parado: fica ali.
+        if s.get("sitting"):
+            p_ = who(s, self.beloved)
+            if p_ is not None and float(p_.get("idle_seconds") or 0) >= 5 and float(p_.get("distance") or 99) < 8:
+                return
 
         # 3) objetivo próprio: a próxima coisa da progressão (instinto de player)
         if (

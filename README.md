@@ -126,6 +126,7 @@ Copie `mod/build/libs/waifuscam-0.7.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu attack` | Ela luta contra os monstros por perto |
 | `/waifu reflexes on\|off` | Liga ou desliga os reflexos (fugir, revidar, comer sozinha) |
 | `/waifu autonomy on\|off` | Liga ou desliga o que ela faz por conta própria (objetivos, ideias soltas). Fica salvo; o abrigo da noite continua |
+| `/waifu emote <nome>` | Ela faz uma expressão: hearts, wave, jump, nod, shake, shy, spin, crouch, sit, stand, happy, music |
 | `/waifu cook` | Ela assa a comida crua que tiver (ou arruma comida) |
 | `/waifu mineores` | Ela minera os minérios à vista por perto |
 | `/waifu sleep` | Ela dorme na cama livre mais perto até amanhecer |
@@ -221,10 +222,11 @@ waifu-scam/
 | 12 · Construir 🧪 | Casinha 5x5 com porta e tocha, ponte até o outro lado | "Constrói uma casa pra gente" vira casa de verdade |
 | 13 · Ajudar no que você faz 🧪 | Ela vê o que você está fazendo (cortando árvore, construindo, minerando, caverna, luta) e ajuda nisso | Você corta árvore e ela vem cortar junto |
 | 14 · Momentos juntos 🧪 | Agacha de volta, vem ficar pertinho, traz flor, dorme quando você dorme, lembra datas e momentos | Ela te dá uma flor sem você pedir |
+| 15 · Expressões 🧪 | Corações, acenar, pular, sim/não com a cabeça, tímida, girar, sentar do seu lado — sem mod no cliente | Ela senta do seu lado quando você para |
 
 🧪 = feito e aguardando teste no jogo. O roteiro completo está em [docs/teste.md](docs/teste.md).
 
-Próximos passos: **voz** (ela falar em voz alta em pt-BR, talvez pelo Simple Voice Chat — anotado para depois, falta escolher a voz), várias personagens ao mesmo tempo, construir a partir de schematic, Nether.
+Próximos passos: **animações customizadas** (abraço, dança, beijo; feitas no Blockbench, precisam do mod no cliente), **voz** (ela falar em voz alta em pt-BR, talvez pelo Simple Voice Chat — anotado para depois, falta escolher a voz), várias personagens ao mesmo tempo, construir a partir de schematic, Nether.
 
 ## Desenvolvimento
 

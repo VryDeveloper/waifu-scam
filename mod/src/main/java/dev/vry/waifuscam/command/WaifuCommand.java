@@ -173,6 +173,19 @@ public final class WaifuCommand {
 				.then(Commands.literal("autonomia")
 						.then(Commands.literal("on").executes(ctx -> autonomy(ctx.getSource(), mod, true)))
 						.then(Commands.literal("off").executes(ctx -> autonomy(ctx.getSource(), mod, false))))
+				.then(Commands.literal("emote")
+						.then(Commands.argument("name", StringArgumentType.word())
+								.suggests((ctx, builder) -> SharedSuggestionProvider.suggest(dev.vry.waifuscam.bot.Emotes.NAMES, builder))
+								.executes(ctx -> {
+									var c = mod.companions();
+									if (c == null || !c.isOnline()) {
+										ctx.getSource().sendFailure(Component.literal("Ela não está no mundo."));
+										return 0;
+									}
+									String who = ctx.getSource().getPlayer() != null ? ctx.getSource().getPlayer().getGameProfile().name() : null;
+									c.emote(StringArgumentType.getString(ctx, "name"), who);
+									return 1;
+								})))
 				.then(Commands.literal("cook").executes(ctx ->
 						run(ctx.getSource(), mod, "cook", new JsonObject(), "Ela vai fazer comida.")))
 				.then(Commands.literal("mineores").executes(ctx ->

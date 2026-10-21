@@ -142,7 +142,7 @@ public final class WaifuScamMod implements ModInitializer {
 			CompanionPlayer me = companions.player();
 			if (watch != null && me != null && !me.isDeadOrDying()) {
 				for (String who : watch.crouching(me)) {
-					companions.crouchBack();
+					companions.crouchBack(who);
 					JsonObject f = new JsonObject();
 					f.addProperty("from", who);
 					sendToMind(Protocol.event(botId, "crouch", f));
@@ -291,6 +291,7 @@ public final class WaifuScamMod implements ModInitializer {
 				near.add(o);
 			}
 			s.add("players_near", near);
+			s.addProperty("sitting", companions.sitting());
 			if (watch != null) {
 				s.add("players_activity", watch.summary(p, 48));
 			}
@@ -504,6 +505,17 @@ public final class WaifuScamMod implements ModInitializer {
 								}
 							}
 							sendToMind(Protocol.queryResult(botId, id, result));
+						});
+					}
+				}
+				case "emote" -> {
+					String name = Protocol.string(msg, "name");
+					String to = Protocol.string(msg, "to");
+					if (s != null) {
+						s.execute(() -> {
+							if (companions != null) {
+								companions.emote(name, to);
+							}
 						});
 					}
 				}

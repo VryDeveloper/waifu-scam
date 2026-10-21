@@ -120,6 +120,7 @@ WORK_SKILLS = {
 }
 PLAN_SKILLS = {"obtain", "craft", "give"}  # antes de começar, confere com o corpo se dá para fazer
 DONE_COMMENT_COOLDOWN = 20.0
+EMOTE_TAG = re.compile(r"\[\s*(?:emote|emo[çc][ãa]o|express[ãa]o)\s*:\s*([^\]]+)\]", re.IGNORECASE)
 MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
 OUT_OF_BUDGET_NOTICE_EVERY = 600.0
 BUSY_NOTICE_EVERY = 60.0  # aviso de "travei" (IA sem cota) no máximo a cada minuto
@@ -137,6 +138,9 @@ CHAT_RULES = """
 - "Me dá/passa X" = give. Pedido grande ("faz uma picareta de pedra") é uma ação só.
   Várias coisas ("faz a armadura toda"): uma linha [ação: ...] para cada, na ordem; ela faz uma depois da outra.
 - Memória: [lembrar: nome] guarda o lugar onde você está, [esquecer: nome] apaga, [nota: frase] guarda um fato.
+- Expressão do corpo (opcional, só quando combina, no máximo uma): [emote: coracoes], [emote: acenar],
+  [emote: pular], [emote: sim], [emote: nao], [emote: timida], [emote: girar], [emote: feliz], [emote: sentar],
+  [emote: levantar]. "Senta aqui comigo" = [emote: sentar].
 - Você só enxerga o que está em "O que você está vendo agora". Do resto, só sabe o que lembra.
 - "Do jogo" é a verdade sobre receitas e sobre o que dá para fazer agora: se dá, coloque a ação com o id que
   aparece lá; se não dá, diga em poucas palavras o que falta. Explique a receita só se perguntarem como faz.
@@ -335,6 +339,7 @@ class ChatBrain:
             case "spawned":
                 self._seeded = False  # corpo novo: manda as lembranças de novo
                 self._note("você entrou no mundo")
+                await self._emote(mouth, "wave", self.character.beloved or None)
                 await self._speak(
                     mouth,
                     instruction="Você acabou de entrar no mundo. Cumprimente quem está online em uma frase curta."
@@ -548,6 +553,7 @@ class ChatBrain:
             if started is not None and msg.skill == "give" and str(started[1].get("item", "")) == "#small_flowers":
                 to = started[1].get("player", "ele")
                 self.memory.moment("first_flower", f"a primeira flor que você deu para {to}")
+                await self._emote(mouth, "shy", str(to))
                 await self._speak(
                     mouth,
                     instruction=f"Você acabou de dar uma flor de presente para {to}, sem ele pedir. "
@@ -594,6 +600,12 @@ class ChatBrain:
             instruction=f"Você tentou fazer '{msg.skill}', mas não deu: {msg.reason}. Comente em uma frase curta.",
             partner=started[2],
         )
+
+    async def _emote(self, mouth: Mouth, name: str, to: str | None = None) -> None:
+        """Manda o corpo fazer uma expressão (corações, acenar, sentar...)."""
+        send = getattr(mouth, "send", None)
+        if send is not None and name.strip():
+            await send(p.Emote(name=name.strip().lower(), to=to))
 
     def _anniversary(self) -> str:
         """Hoje faz uma semana/um mês/100 dias que vocês se conheceram? (uma vez só)."""
@@ -706,6 +718,8 @@ class ChatBrain:
 
             log.info("IA (%s): %s", "fundo" if background else "chat", reply.replace("\n", " | ")[:300])
             players = [n for n in (mouth.state.model_dump().get("players", []) if mouth.state else [])]
+            emote = EMOTE_TAG.search(reply)
+            reply = EMOTE_TAG.sub("", reply)
             text, actions = resolve_all(reply, skills, partner, players)
             action = actions[0] if actions else None
             text, later = resolve_later(text, skills, partner, players)
@@ -742,6 +756,8 @@ class ChatBrain:
             lines = [said for line in clean_reply(text, self._names) if (said := self.plugins.on_say(line))]
             if not lines and fallback and action is None:
                 lines = [fallback]
+            if emote:
+                await self._emote(mouth, emote.group(1), partner or self.character.beloved or None)
             started_id = None
             if action is not None:
                 # Começa a andar antes de digitar: parece mais vivo.

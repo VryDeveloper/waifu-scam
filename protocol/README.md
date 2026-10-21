@@ -116,6 +116,10 @@ Mensagens novas: `query` (Mente → Corpo: `id`, `query`, `args`) e `query.resul
 
 Evento novo do Corpo: `event` `crouch` (`from`) quando um player agacha e levanta 3 vezes em 2 s olhando para ela (ela agacha de volta sozinha). Em `players_activity`, cada player ganha `sleeping` e `idle_seconds` (há quanto tempo não sai do lugar).
 
+## Fase 15: expressões
+
+Mensagem nova da Mente: `emote` (`name`, `to` opcional) — `hearts`, `wave`, `jump`, `nod`, `shake`, `shy`, `spin`, `crouch`, `sit`, `stand`, `happy`, `music` (ou os nomes em português: corações, acenar, sentar...). O `state` ganha `sitting`.
+
 ## Próximas fases
 
 `skill.progress`, `query` / `query.result` e `config` entram como tipos novos, sem mudar o envelope.

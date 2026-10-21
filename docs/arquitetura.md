@@ -60,6 +60,10 @@ O `Planner` monta o passo a passo num inventário simulado: começa pelo que ela
 
 Os nomes em português são a tradução oficial (`pt_br.json`), lida da pasta do Minecraft de quem joga, mais apelidos ("ferro" = lingote, "madeira" = qualquer tronco).
 
+### Expressões (fase 15)
+
+`bot/Emotes` monta expressões só com o que o jogo já tem, então quem não tem o mod também vê: partículas (corações, notas, brilho), braço balançando, pulo, cabeça fazendo sim/não, olhar para baixo (tímida), giro, agachar e sentar (ela monta num bloco de exibição vazio, sem gravidade, que some quando ela levanta). Rodam por cima do que ela está fazendo; sentada, ela levanta sozinha quando começa uma habilidade ou aparece monstro. A IA escolhe com `[emote: ...]` na fala, e a Mente também usa sozinha: acenar no oi, tímida ao dar flor, sentar do lado dele quando ele para.
+
 ### Momentos juntos (fase 14)
 
 `PlayerWatch` também percebe quando alguém agacha e levanta olhando para ela (3 vezes em 2 s, o "carinho" dos players): o corpo agacha de volta na hora e manda o evento `crouch`, e a Mente reage. No `state`, cada player traz `sleeping` e `idle_seconds`. Quando não há nada para ajudar, a Vontade olha `brain/bonding.py`: ele parado há 25 s → ela vem para perto; de dia, a cada ~45 min (a primeira só depois de 20 min juntos) → ela colhe uma flor e entrega, e só fala na entrega. Se ele dorme, ela vai dormir também. Momentos especiais (primeira casa, primeira flor, primeira noite, primeiro agachar, uma semana/um mês/100 dias desde que se conheceram) ficam na memória (`moments`) e entram no prompt.

@@ -156,6 +156,19 @@ Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
 | 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
 | 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
 
+## Fase 15 — Expressões
+
+Todas funcionam sem mod no cliente (seu amigo também vê). Para testar uma por uma: `/waifu emote <nome>` (hearts, wave, jump, nod, shake, shy, spin, crouch, sit, stand, happy, music).
+
+| # | Faça | Esperado |
+|---|---|---|
+| 15.1 | `lumi você é linda` | Ela responde e solta coraçõezinhos (ou fica tímida, olhando para baixo) |
+| 15.2 | Entre no mundo | Ela acena para você no "oi" |
+| 15.3 | `lumi senta aqui comigo` | Ela senta no chão do seu lado; levanta sozinha quando precisa andar ou aparece monstro |
+| 15.4 | Fique parado uns 30 s | Ela vem pertinho e senta do seu lado, e fica sentada enquanto você está parado |
+| 15.5 | Agache 3 vezes olhando para ela | Ela agacha de volta com coraçõezinhos |
+| 15.6 | Quando ela te der uma flor | Ela fica tímida |
+
 ## Fase 14 — Momentos juntos
 
 | # | Faça | Esperado |

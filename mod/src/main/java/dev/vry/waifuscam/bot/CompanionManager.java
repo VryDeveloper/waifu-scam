@@ -45,6 +45,7 @@ public final class CompanionManager {
 	private final Controls controls = new Controls();
 	private final Reflexes reflexes;
 	private final Eyes eyes = new Eyes();
+	private final Emotes emotes = new Emotes();
 
 	private Skill skill;
 	private String skillId;
@@ -143,6 +144,7 @@ public final class CompanionManager {
 
 		CompanionPlayer player = CompanionPlayer.spawn(server, level, CompanionPlayer.profile(username, skin), pos, yaw);
 		uuid = player.getUUID();
+		Emotes.cleanup(level, player);
 		events.accept("spawned", null);
 		return null;
 	}
@@ -154,6 +156,7 @@ public final class CompanionManager {
 			return false;
 		}
 		endSkill("saí do mundo", true);
+		emotes.standUp(player);
 		player.connection.disconnect(Component.literal(reason));
 		events.accept("despawned", reason);
 		return true;
@@ -237,9 +240,24 @@ public final class CompanionManager {
 	 */
 	private int crouchBack;
 
-	/** Ela agacha de volta (responder o carinho), por alguns instantes. */
-	public void crouchBack() {
+	/** Ela agacha de volta (responder o carinho), por alguns instantes, com coraçõezinhos. */
+	public void crouchBack(String to) {
 		crouchBack = 36;
+		emote("hearts", to);
+	}
+
+	public boolean sitting() {
+		return emotes.sitting();
+	}
+
+	/** Uma expressão (corações, acenar, sentar...). to = para quem, ou null. */
+	public void emote(String name, String to) {
+		CompanionPlayer me = player();
+		if (me == null || me.isDeadOrDying()) {
+			return;
+		}
+		ServerPlayer target = to != null ? server.getPlayerList().getPlayerByName(to) : null;
+		emotes.play(me, name, target);
 	}
 
 	public void tick() {
@@ -250,6 +268,7 @@ public final class CompanionManager {
 			return;
 		}
 		if (player.isDeadOrDying()) {
+			emotes.standUp(player);
 			reflexes.reset();
 			endSkill("morri", true);
 			if (++deadTicks >= RESPAWN_DELAY_TICKS) {
@@ -263,6 +282,10 @@ public final class CompanionManager {
 			eyes.look(player, server.getTickCount());
 		}
 
+		// Sentada: levanta para fazer alguma coisa ou quando aparece perigo.
+		if (emotes.sitting() && (skill != null || dev.vry.waifuscam.hands.Combat.nearestHostile(player, 10).isPresent())) {
+			emotes.standUp(player);
+		}
 		SkillContext ctx = new SkillContext(server, player, controls);
 		if (reflexes.before(ctx, server.getTickCount())) {
 			reflexes.after(ctx);
@@ -286,6 +309,7 @@ public final class CompanionManager {
 			crouchBack--;
 			controls.sneak((crouchBack / 6) % 2 == 0); // agacha, levanta, agacha...
 		}
+		emotes.tick(player, controls);
 		reflexes.after(ctx);
 	}
 

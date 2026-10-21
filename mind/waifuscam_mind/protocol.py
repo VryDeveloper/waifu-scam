@@ -148,6 +148,14 @@ class QueryResult(Envelope):
     failure: str | None = None
 
 
+class Emote(Envelope):
+    """Uma expressão do corpo (corações, acenar, sentar...), para alguém (to) ou não."""
+
+    type: Literal["emote"] = "emote"
+    name: str
+    to: str | None = None
+
+
 class MemoryBlocks(Envelope):
     """Onde ela lembra de ter visto as coisas neste mundo (de sessões anteriores)."""
 
@@ -182,6 +190,7 @@ _BY_TYPE: dict[str, type[Envelope]] = {
     "skill.failed": SkillFailed,
     "error": ErrorMsg,
     "memory.blocks": MemoryBlocks,
+    "emote": Emote,
     "query": Query,
     "query.result": QueryResult,
     "ping": Ping,
