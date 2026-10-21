@@ -40,6 +40,7 @@ hungry_think_every = 180  # com fome e sem comida, pensa no que fazer a cada N s
 enabled = []
 
 [chat]
+beloved = "Vryx_"          # nome no Minecraft de quem ela é a companheira (romance só com essa pessoa); vazio = quem jogar
 greeting = "oii, cheguei hehe"   # o que ela fala ao entrar no mundo (quando a IA não responde)
 proactive_interval = 60   # segundos mínimos entre falas espontâneas
 typing_speed = 25         # caracteres por segundo, para parecer que está digitando

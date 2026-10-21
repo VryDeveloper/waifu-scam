@@ -143,7 +143,7 @@ Para não estourar a cota grátis, existe um limite diário de chamadas (`[llm] 
 
 ## Crie a sua personagem
 
-Cada personagem é uma pasta com `character.toml` (nome, skin, pesos das necessidades, comandos, modelos de IA) e `persona.md` (a personalidade, em texto livre). Use a [Lumi](characters/lumi/) como modelo:
+Cada personagem é uma pasta com `character.toml` (nome, skin, pesos das necessidades, comandos, modelos de IA) e `persona.md` (a personalidade, em texto livre). Na persona, `{bot_name}` vira o nome dela e `{beloved}` vira quem está em `[chat] beloved` (com quem ela tem o carinho especial; vazio = quem jogar). Use a [Lumi](characters/lumi/) como modelo:
 
 ```bash
 cp -r characters/lumi characters/private/minha-vtuber

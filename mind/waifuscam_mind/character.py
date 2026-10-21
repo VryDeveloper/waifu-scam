@@ -25,9 +25,15 @@ class Character:
     root: Path
     config: dict = field(default_factory=dict)
 
+    @property
+    def beloved(self) -> str:
+        """Com quem ela tem o carinho especial ([chat] beloved); vazio = quem joga com ela."""
+        return str(self.section("chat").get("beloved", "")).strip()
+
     def persona(self) -> str:
-        """A persona com {bot_name} trocado pelo nome da personagem."""
-        return self.persona_template.replace("{bot_name}", self.name)
+        """A persona com {bot_name} e {beloved} trocados."""
+        text = self.persona_template.replace("{bot_name}", self.name)
+        return text.replace("{beloved}", self.beloved or "quem joga com você")
 
     def section(self, name: str) -> dict:
         value = self.config.get(name, {})

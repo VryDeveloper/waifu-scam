@@ -47,3 +47,14 @@ def test_invalid_username_is_clear_error(tmp_path):
     (tmp_path / "x" / "persona.md").write_text("oi", encoding="utf-8")
     with pytest.raises(CharacterError, match="username"):
         load_character(tmp_path, "x")
+
+
+def test_persona_names_who_she_loves(characters_dir):
+    from dataclasses import replace
+
+    lumi = load_character(characters_dir, "lumi")
+    text = lumi.persona()
+    assert "{beloved}" not in text and "{bot_name}" not in text
+    assert f"companheira de {lumi.beloved or 'quem joga com você'}" in text
+    nobody = replace(lumi, config={**lumi.config, "chat": {}})
+    assert "companheira de quem joga com você" in nobody.persona()
