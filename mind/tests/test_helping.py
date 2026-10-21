@@ -17,7 +17,8 @@ def vry(**fields):
 def test_reads_what_he_is_doing():
     assert activity(vry(broke={"oak_log": 3})) == "cortando árvore"
     assert activity(vry(placed={"cobblestone": 9})) == "construindo (com cobblestone)"
-    assert activity(vry(underground=True, y=20, broke={"stone": 5, "iron_ore": 1})) == "minerando numa caverna"
+    assert activity(vry(underground=True, y=20, broke={"stone": 5, "iron_ore": 1})) == "minerando minério (iron)"
+    assert activity(vry(underground=True, y=20, broke={"stone": 5})) == "minerando numa caverna"
     assert activity(vry(attacked={"zombie": 2})) == "lutando com monstros"
     assert activity(vry()) is None
     text = describe_activity({"players_activity": [vry(broke={"birch_log": 4})]}, "Lumi")
@@ -86,3 +87,12 @@ async def test_nothing_when_spontaneous_is_off(lumi):  # noqa: F811
 
 def test_unused_imports():
     assert p and FARM
+
+
+def test_helps_mine_the_ores_around():
+    g = help_goal({"players_activity": [vry(broke={"copper_ore": 2, "stone": 3})]}, "Vry")
+    assert (g.skill, g.args) == ("mine_ores", {})
+    g = help_goal({"players_activity": [vry(underground=True, y=10, broke={"deepslate_iron_ore": 1})]}, "Vry")
+    assert g.skill == "mine_ores"  # minério vem antes de só acompanhar
+    g = help_goal({"players_activity": [vry(distance=30, broke={"coal_ore": 1})]}, "Vry")
+    assert g.skill == "goto"

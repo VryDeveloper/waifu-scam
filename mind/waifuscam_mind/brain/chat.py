@@ -96,7 +96,21 @@ QUICK = {
     "follow": ({"segue", "siga", "seguir"}, {"me", "eu", "mim", "comigo"}, "bora, tô indo atrás de você"),
     "come": ({"vem", "venha", "volta"}, {"aqui", "ca", "comigo", "pra", "perto"}, "tô indo aí"),
 }
-WORK_SKILLS = {"obtain", "craft", "collect", "give", "hunt", "deposit", "withdraw", "build", "bridge", "farm"}
+RAW_FOODS = {"porkchop", "beef", "chicken", "mutton", "rabbit", "cod", "salmon", "potato", "kelp"}
+WORK_SKILLS = {
+    "obtain",
+    "craft",
+    "collect",
+    "give",
+    "hunt",
+    "deposit",
+    "withdraw",
+    "build",
+    "bridge",
+    "farm",
+    "cook",
+    "mine_ores",
+}
 PLAN_SKILLS = {"obtain", "craft", "give"}  # antes de começar, confere com o corpo se dá para fazer
 DONE_COMMENT_COOLDOWN = 20.0
 MEMORY_TAG = re.compile(r"\[\s*(lembrar|esquecer|nota)\s*:\s*([^\]]+)\]", re.IGNORECASE)
@@ -112,6 +126,7 @@ CHAT_RULES = """
 - Você só faz no jogo o que estiver em "Ações". Se não tiver ação para o pedido, diga que isso você ainda não
   consegue. A ação só começa quando você coloca a linha; nunca diga que já fez ou terminou: o corpo avisa.
 - Você decide: topa (coloque a ação), adia ([depois: ...] e diga quando) ou recusa. Adie se tiver algo urgente.
+- "Faz comida", "cozinha", "assa a carne" = cook. "Me ajuda a minerar" = mine_ores.
 - "Me dá/passa X" = give. Pedido grande ("faz uma picareta de pedra") é uma ação só.
   Várias coisas ("faz a armadura toda"): uma linha [ação: ...] para cada, na ordem; ela faz uma depois da outra.
 - Memória: [lembrar: nome] guarda o lugar onde você está, [esquecer: nome] apaga, [nota: frase] guarda um fato.
@@ -171,6 +186,9 @@ def describe_situation(state: p.State | None, me: str) -> str:
     if isinstance(inventory, dict):
         items = ", ".join(f"{n} {item}" for item, n in list(inventory.items())[:25])
         lines.append(f"- Seu inventário: {items}" if items else "- Seu inventário está vazio.")
+        raw = [f"{n} {item}" for item, n in inventory.items() if str(item).removeprefix("minecraft:") in RAW_FOODS]
+        if raw:
+            lines.append(f"- Comida crua que dá para assar (ação cook): {', '.join(raw)}")
     if s.get("holding"):
         lines.append(f"- Na mão: {s['holding']}")
     doing = (s.get("skill") or {}).get("doing") if isinstance(s.get("skill"), dict) else None

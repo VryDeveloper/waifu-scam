@@ -36,6 +36,7 @@ final class Reflexes {
 	private Skill interrupt;
 	private int eatCooldown;
 	private int lastDangerEvent = -EVENT_COOLDOWN;
+	private int creeperBackoff; // ticks correndo para trás depois de bater no creeper
 	private String lastDangerType;
 	private boolean enabled = true;
 
@@ -72,8 +73,31 @@ final class Reflexes {
 			LivingEntity t = threat.get();
 			double dist = t.distanceTo(me);
 			announce(t, tick);
-			boolean creeperClose = t instanceof Creeper creeper && (creeper.getSwellDir() > 0 || dist < 4);
-			if (creeperClose || (me.getHealth() <= 6 && dist < ENGAGE_RADIUS)) {
+			if (t instanceof Creeper creeper && dist < 8) {
+				// Creeper: bate e recua, bate e recua. Quando ele começa a inchar, corre até sair do alcance.
+				interrupt = null;
+				boolean canHit = Combat.hasWeapon(me) && me.getHealth() > 8;
+				if (creeper.getSwellDir() > 0 || creeperBackoff > 0 || !canHit) {
+					if (creeperBackoff > 0) {
+						creeperBackoff--;
+					}
+					archery.cancel(me);
+		Combat.lowerShield(me);
+		creeperBackoff = 0;
+					Combat.flee(me, t, c);
+					return true;
+				}
+				if (Archery.canShoot(me) && dist > Archery.MIN_RANGE) {
+					archery.tick(me, t, c);
+					return true;
+				}
+				archery.cancel(me);
+				if (Combat.fight(me, t, c)) {
+					creeperBackoff = 14; // bateu: o creeper é empurrado e ela se afasta antes de ele explodir
+				}
+				return true;
+			}
+			if (me.getHealth() <= 6 && dist < ENGAGE_RADIUS) {
 				interrupt = null;
 				archery.cancel(me);
 				Combat.flee(me, t, c);

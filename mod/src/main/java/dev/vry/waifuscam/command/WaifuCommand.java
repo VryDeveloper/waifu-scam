@@ -173,6 +173,10 @@ public final class WaifuCommand {
 				.then(Commands.literal("autonomia")
 						.then(Commands.literal("on").executes(ctx -> autonomy(ctx.getSource(), mod, true)))
 						.then(Commands.literal("off").executes(ctx -> autonomy(ctx.getSource(), mod, false))))
+				.then(Commands.literal("cook").executes(ctx ->
+						run(ctx.getSource(), mod, "cook", new JsonObject(), "Ela vai fazer comida.")))
+				.then(Commands.literal("mineores").executes(ctx ->
+						run(ctx.getSource(), mod, "mine_ores", new JsonObject(), "Ela vai minerar os minérios por perto.")))
 				// ---- fase 12: construir ----
 				.then(Commands.literal("build").executes(ctx -> {
 					JsonObject args = new JsonObject();

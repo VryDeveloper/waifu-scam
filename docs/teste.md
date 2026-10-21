@@ -156,6 +156,17 @@ Com `/waifu autonomy on`. Ela olha o último minuto do que você fez.
 | 13.7 | Pergunte "lumi o que eu tô fazendo?" | Ela sabe (aparece no prompt dela) |
 | 13.8 | Não faça nada de especial | Ela segue os objetivos básicos dela (picareta, madeira...), sem repetir o que já tem |
 
+## Correções do teste da fase 13
+
+| # | Faça | Esperado |
+|---|---|---|
+| D.1 | Com carne crua no inventário dela: `lumi faz comida` (ou `/waifu cook`) | Ela assa toda a carne crua que tem |
+| D.2 | Sem nada cru: `lumi cozinha alguma coisa` | Ela arruma comida (caça e assa, ou faz pão) |
+| D.3 | Dê um escudo e deixe um zumbi vir | Bate, levanta o escudo enquanto a espada recarrega, bate de novo |
+| D.4 | Esqueleto atirando de longe | Ela vai até ele com o escudo na frente |
+| D.5 | Creeper chegando | Ela bate e recua, bate e recua; se ele começar a inchar, corre |
+| D.6 | Mine um minério perto dela (ou `lumi me ajuda a minerar`) | Ela quebra os outros minérios à vista em volta e segue o veio |
+
 ## Desligar o comportamento espontâneo
 
 | # | Faça | Esperado |

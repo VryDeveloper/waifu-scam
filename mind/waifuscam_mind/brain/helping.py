@@ -48,7 +48,10 @@ def activity(p: dict[str, Any]) -> str | None:
     attacked = p.get("attacked") or {}
     if _sum(attacked, lambda k: k in HOSTILES):
         return "lutando com monstros"
-    if p.get("underground") and (_sum(broke, lambda k: k in STONE or k.endswith("_ore"))):
+    if _sum(broke, lambda k: k.endswith("_ore")):
+        ores = sorted({k.removeprefix("deepslate_").removesuffix("_ore") for k in broke if k.endswith("_ore")})
+        return "minerando minério (" + ", ".join(ores) + ")"
+    if p.get("underground") and _sum(broke, lambda k: k in STONE):
         return "minerando numa caverna"
     if sum(placed.values()) >= 4:
         top = max(placed, key=placed.get)
@@ -84,6 +87,13 @@ def help_goal(state: dict[str, Any], beloved: str) -> Goal | None:
     far = float(p.get("distance") or 0) > NEAR
 
     goal: Goal | None = None
+    fighting = bool(_sum(attacked, lambda k: k in HOSTILES))
+    if not fighting and _sum(broke, lambda k: k.endswith("_ore") or k == "ancient_debris"):
+        # Ele está minerando minério: ela quebra os outros minérios em volta (e o veio).
+        goal = Goal(f"help:ores:{name}", "mine_ores", {}, f"ajudar {name} a minerar os minérios", "social", 45)
+        if far:
+            return Goal(f"help:approach:{name}", "goto", {"player": name}, f"ir para perto de {name}", "social", 20)
+        return goal
     if wants_company(p):
         # Luta ou caverna: ficar do lado dele (os reflexos protegem; seguindo, ela deixa tocha no escuro).
         why = "ajudar na luta" if _sum(attacked, lambda k: k in HOSTILES) else "ir junto na caverna, iluminando"

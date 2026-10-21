@@ -126,6 +126,8 @@ Copie `mod/build/libs/waifuscam-0.7.0.jar` e o jar da Fabric API para a pasta `m
 | `/waifu attack` | Ela luta contra os monstros por perto |
 | `/waifu reflexes on\|off` | Liga ou desliga os reflexos (fugir, revidar, comer sozinha) |
 | `/waifu autonomy on\|off` | Liga ou desliga o que ela faz por conta própria (objetivos, ideias soltas). Fica salvo; o abrigo da noite continua |
+| `/waifu cook` | Ela assa a comida crua que tiver (ou arruma comida) |
+| `/waifu mineores` | Ela minera os minérios à vista por perto |
 | `/waifu sleep` | Ela dorme na cama livre mais perto até amanhecer |
 | `/waifu remember <nome>` | Ela guarda na memória o lugar onde você está (ex.: `/waifu remember base`) |
 

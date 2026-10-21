@@ -344,3 +344,8 @@ def test_raw_meat_name_is_fixed(lumi):
 
     b = brain(lumi, FakeLLM())
     assert b._item_ids(Action("smelt", {"item": "raw_porkchop", "count": 3})).args["item"] == "porkchop"
+
+
+def test_situation_points_out_raw_food():
+    st = p.State(online=True, players=["Lumi"], inventory={"porkchop": 14, "dirt": 3})
+    assert "Comida crua que dá para assar (ação cook): 14 porkchop" in describe_situation(st, "Lumi")

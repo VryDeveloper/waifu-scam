@@ -73,6 +73,8 @@ HINTS = {
     "withdraw": "pegar do baú",
     "build": "construir uma casinha 5x5 com porta (build house, ou build house_cobblestone); junta o material",
     "bridge": "fazer uma ponte reta para onde quem pediu está olhando, até o outro lado (rio, buraco, lava)",
+    "cook": "fazer comida: assa toda a comida crua que tiver (porkchop, beef...); sem nada cru, arruma comida",
+    "mine_ores": "ajudar a minerar: quebrar os minérios à vista por perto e o veio deles",
     "farm": "cuidar da plantação: colher o maduro, replantar, plantar (com enxada, ara perto da água)",
     "hunt": "caçar cow, pig, sheep, chicken, rabbit",
     "attack": "atacar: um tipo de bicho (iron_golem, zombie) ou o bicho que um player está atacando",

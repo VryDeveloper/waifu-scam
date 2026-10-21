@@ -148,6 +148,16 @@ public final class SkillRegistry {
 				params("{\"type\":\"object\",\"properties\":{}}"),
 				(args, server, me) -> new FarmSkill()));
 
+		register(new Spec("cook",
+				"Fazer comida: assa toda a comida crua do inventário (carne, peixe, batata); sem nada cru, arruma comida (caça e assa, ou pão).",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new CookSkill()));
+
+		register(new Spec("mine_ores",
+				"Ajudar a minerar: quebrar todos os minérios à vista por perto (e o veio deles), pegando o que cair.",
+				params("{\"type\":\"object\",\"properties\":{}}"),
+				(args, server, me) -> new MineAroundSkill()));
+
 		// ---- fase 12: construir ----
 
 		register(new Spec("build",

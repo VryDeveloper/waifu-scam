@@ -97,7 +97,15 @@ public final class Combat {
 		equipWeapon(me);
 		controls.lookAt(target.getEyePosition().add(0, -0.3, 0));
 		double dist = me.distanceTo(target);
+		boolean shield = me.getOffhandItem().is(net.minecraft.world.item.Items.SHIELD);
+		boolean ready = me.getAttackStrengthScale(0.5F) >= 0.95F;
 		if (dist > REACH) {
+			// Indo até ele: escudo na frente contra flecha (esqueleto, saqueador).
+			if (shield && target instanceof net.minecraft.world.entity.monster.RangedAttackMob && dist < 16) {
+				raiseShield(me);
+			} else {
+				lowerShield(me);
+			}
 			if (safeAhead(me, target)) {
 				controls.forward(1);
 				controls.jump(me.horizontalCollision && me.onGround());
@@ -107,6 +115,12 @@ public final class Combat {
 		if (dist < 1.2) {
 			controls.forward(-0.5F); // um passo para trás para não ficar dentro do bicho
 		}
+		// Bate, protege, bate: enquanto a espada recarrega, segura o escudo.
+		if (shield && !ready) {
+			raiseShield(me);
+			return false;
+		}
+		lowerShield(me);
 		boolean facing = dev.vry.waifuscam.control.Controls.aimed(me, target.getEyePosition().add(0, -0.3, 0), 30);
 		if (facing && me.getAttackStrengthScale(0.5F) >= 0.95F && me.isWithinEntityInteractionRange(target, 0)) {
 			me.attack(target);
@@ -116,6 +130,28 @@ public final class Combat {
 			return true;
 		}
 		return false;
+	}
+
+	/** Levanta o escudo (segura o botão direito com ele na outra mão). */
+	public static void raiseShield(ServerPlayer me) {
+		ItemStack off = me.getOffhandItem();
+		if (!off.is(net.minecraft.world.item.Items.SHIELD)) {
+			return;
+		}
+		if (me.isUsingItem() && me.getUseItem().is(net.minecraft.world.item.Items.SHIELD)) {
+			return;
+		}
+		if (me.isUsingItem()) {
+			me.stopUsingItem();
+		}
+		me.gameMode.useItem(me, me.level(), off, InteractionHand.OFF_HAND);
+	}
+
+	/** Abaixa o escudo, se estiver levantado. */
+	public static void lowerShield(ServerPlayer me) {
+		if (me.isUsingItem() && me.getUseItem().is(net.minecraft.world.item.Items.SHIELD)) {
+			me.stopUsingItem();
+		}
 	}
 
 	/** Dá para dar um passo na direção do alvo sem cair num buraco fundo ou na lava? */
@@ -141,6 +177,7 @@ public final class Combat {
 
 	/** Corre na direção oposta à ameaça. */
 	public static void flee(ServerPlayer me, Entity from, Controls controls) {
+		lowerShield(me); // com escudo levantado não dá para correr
 		Vec3 away = me.position().subtract(from.position()).multiply(1, 0, 1);
 		if (away.lengthSqr() < 1.0E-4) {
 			away = new Vec3(1, 0, 0);
