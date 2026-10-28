@@ -33,7 +33,7 @@ A fala transcrita entra no `ChatBrain` como um evento `chat` comum (com `via: "v
 | Etapa | Como | Tempo |
 |---|---|---|
 | Saber que você parou de falar | O SVC só manda pacote enquanto você fala (push-to-talk ou ativação por voz). Fim da fala = 300 ms sem pacote. Não precisa de VAD | ~300 ms |
-| Transcrever | Groq `whisper-large-v3-turbo` (a chave do Groq que já está no `.env`), com o nome dela e dos players no `prompt` do Whisper para não errar "Lumi" | ~300–500 ms |
+| Transcrever | `faster-whisper` local (ou Groq de reserva), com o nome dela e dos players no `initial_prompt` para não errar "Lumi" | ~200–500 ms |
 | Pensar | LLM em **streaming**; a primeira frase sai antes de a resposta terminar | ~300–600 ms até a 1ª frase |
 | Falar | TTS só da primeira frase; a 2ª é sintetizada enquanto a 1ª toca | ~150–500 ms |
 | **Total até ouvir a voz dela** | | **~1,2–1,8 s** |
@@ -93,7 +93,7 @@ Pacote novo `waifuscam_mind/voice/`:
 
 | Arquivo | Faz |
 |---|---|
-| `stt.py` | `GroqWhisper` (padrão) e `LocalWhisper` (`faster-whisper`, opcional, offline). Mesmo esquema de fallback dos provedores de LLM |
+| `stt.py` | `LocalWhisper` (`faster-whisper`, padrão) e `GroqWhisper` (reserva). Modelos carregados uma vez, na thread de fundo. Mesmo esquema de fallback dos provedores de LLM |
 | `tts.py` | Provedores que devolvem PCM em pedaços (veja abaixo), com `tts_order` e fallback |
 | `speaker.py` | Consome o stream do LLM, corta por frase (`.`, `!`, `?`, `…`, ou vírgula depois de ~80 caracteres), para no primeiro `[`, sintetiza e manda `voice.chunk`. Cancelável |
 | `audio.py` | Reamostragem para 48 kHz, cabeçalho do frame binário, WAV para os testes |
@@ -105,16 +105,48 @@ Mudanças no que já existe:
 - `server.py`: aceita frames binários e os entrega a `voice.heard`.
 - `sim/body.py`: `--voice arquivo.wav` manda um `voice.heard` e grava a resposta em WAV, para testar sem o jogo.
 
-### Que voz usar (TTS)
+### Tudo no seu computador (padrão)
 
-| Provedor | Natural | 1º áudio | Custo | Observação |
-|---|---|---|---|---|
-| **Edge TTS** (`pt-BR-FranciscaNeural`, `pt-BR-ThalitaMultilingualNeural`) | Bom | ~300–500 ms | Grátis, sem chave | **Padrão sugerido.** Não é API oficial e pode quebrar; streaming em MP3 (decodifica com `miniaudio`, sem ffmpeg) |
-| **Gemini Flash TTS** | Muito bom, expressivo (tags de emoção, sussurro, risada) | a medir | Cota grátis, mesma `GEMINI_API_KEY` | Combina com VTuber: o `[emote: tímida]` vira o tom da voz. Conferir pt-BR e streaming antes |
-| **ElevenLabs Flash v2.5** | Muito bom | ~150 ms + rede | Grátis bem pequeno (alguns minutos por mês) | Melhor latência; voz própria com clonagem nos planos pagos |
-| **Kokoro** (local) | Médio em pt-BR | ~100 ms com GPU | Grátis, offline | Reserva offline. Disputa a GPU com o Minecraft |
+Nada de cota nem limite de token: transcrição, IA e voz rodam localmente. Os modelos são baixados uma vez (Hugging Face / Ollama) e depois funcionam sem internet. As APIs de nuvem ficam como reserva opcional, nas mesmas listas de ordem.
 
-Sugestão: `tts_order = ["edge", "gemini", "kokoro"]`. Primeiro medir as três com a persona dela e escolher pelo ouvido.
+| Parte | Local | Na GPU | Observação |
+|---|---|---|---|
+| Ouvir (STT) | `faster-whisper` `large-v3-turbo` int8 | ~1 GB, ~0,2–0,4 s por frase | Sem GPU sobrando: `small` int8 na CPU, ~1 s |
+| Pensar (LLM) | Ollama (já suportado: `custom` no `provider_order`), ex.: Qwen3 8B ou Gemma 3 12B em Q4 | ~5–8 GB | Sem limite diário. Acerta menos as tags `[ação: ...]` que os modelos grandes da nuvem; medir |
+| Falar (TTS) | Veja abaixo | ~1–3 GB | |
+
+Vozes locais em pt-BR:
+
+| Modelo | Natural | Velocidade | Observação |
+|---|---|---|---|
+| **Chatterbox Multilingual** | Muito bom | Rápido na GPU | MIT, tem português, clona voz de ~10 s de áudio e tem controle de "emoção" — combina com VTuber. **Primeira a testar** |
+| **XTTS-v2** | Muito bom | Streaming ~200 ms na GPU | Clona voz; licença só para uso não comercial (ok para uso pessoal) |
+| **F5-TTS** (versão treinada em pt-BR) | Muito bom | Por frase, sem streaming | Clona voz |
+| **Kokoro** | Médio em pt-BR | Muito rápido, roda até na CPU | Reserva leve |
+| **Piper** (`pt_BR`) | Robótico | Instantâneo na CPU | Último recurso |
+
+A voz própria da Lumi sai da clonagem: um áudio de referência de 10–30 s em `characters/<id>/voice.wav` (uma voz que você tenha direito de usar, ou uma gerada).
+
+Orçamento de memória de vídeo (Minecraft ~1–2 GB + LLM 8B ~5,5 GB + Whisper ~1 GB + TTS ~2–3 GB):
+
+| GPU | Dá para |
+|---|---|
+| 12 GB ou mais | Tudo local na GPU |
+| 8 GB | LLM 4B, Whisper `small` na CPU, Kokoro; ou tudo local menos o LLM |
+| Sem GPU boa | Whisper `small` e Piper/Kokoro na CPU; LLM continua na nuvem |
+
+Se a GPU não aguentar tudo, o meio-termo é **voz e ouvido locais** (são os que seriam chamados a cada frase) e **LLM na nuvem** com o Ollama de reserva: cada fala por voz gasta a mesma chamada de LLM que uma mensagem no chat.
+
+### Reserva na nuvem (opcional)
+
+| Provedor | Observação |
+|---|---|
+| Groq Whisper | ~2.000 pedidos/dia grátis, mesma chave do LLM |
+| Edge TTS (`pt-BR-FranciscaNeural`) | Grátis, sem chave, não oficial |
+| Gemini Flash TTS | Expressivo, cota grátis, mesma `GEMINI_API_KEY` |
+| ElevenLabs Flash | Mais rápida, grátis bem pequeno |
+
+Os pacotes locais ficam num extra, para quem não quer voz não baixar nada: `pip install -e ".[voice]"`.
 
 ### Por que não speech-to-speech (Gemini Live etc.)
 
@@ -127,10 +159,11 @@ Seria o mais rápido, mas a fala não passaria mais pelo `ChatBrain`: persona mo
 ```toml
 [voice]
 enabled = true
-stt_order = ["groq", "local"]
-tts_order = ["edge", "gemini", "kokoro"]
-edge_voice = "pt-BR-FranciscaNeural"
-gemini_voice = ""          # nome da voz do Gemini
+stt_order = ["local"]               # + "groq" para reserva na nuvem
+stt_model = "large-v3-turbo"        # "small" para rodar na CPU
+tts_order = ["chatterbox", "kokoro"] # + "edge", "gemini", "elevenlabs"
+reference = "voice.wav"             # voz dela para clonar (nesta pasta)
+device = "cuda"                     # "cpu" sem GPU
 style = "doce, animada, um pouco tímida"   # vai para o TTS que aceita instrução
 end_of_speech_ms = 300     # silêncio que fecha a sua frase
 subtitles = true           # a fala também aparece no chat
@@ -154,5 +187,5 @@ Cada passo dá para testar no jogo sozinho.
 
 - **Versão do SVC**: até agora só achei builds de snapshot para a 26.3. Conferir no Modrinth a versão estável e a `voicechat-api` correspondente antes de começar.
 - **LAN**: o SVC abre uma porta UDP (24454) no host. Os amigos precisam conseguir chegar nela, como no SVC normal.
-- **Cotas grátis**: Whisper no Groq é ~2.000 pedidos por dia e 20 por minuto, e conta separado do LLM. A fala mais curta que 0,4 s é descartada antes de gastar.
+- **GPU dividida**: Minecraft, LLM, Whisper e TTS disputam a mesma placa. Medir FPS e latência juntos; o `[voice] device` e os modelos menores ajustam. Fala mais curta que 0,4 s é descartada antes de transcrever.
 - **Eco**: quem joga sem fone pode fazer o microfone pegar a voz dela. O corpo ignora o microfone desse player enquanto ela fala (configurável).
